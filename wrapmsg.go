@@ -26,7 +26,10 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func genWrapmsg(posMap map[token.Pos]ast.Node, currentPackagePath string, call *ssa.Call) string {
-	name := getCallName(call)
+	name, ok := getCallName(call)
+	if !ok {
+		return ""
+	}
 	pkg := getCallPackage(call)
 
 	ops := getOperands(call)
@@ -71,8 +74,11 @@ func getCallPackage(call *ssa.Call) *types.Package {
 	return call.Common().StaticCallee().Package().Pkg
 }
 
-func getCallName(call *ssa.Call) string {
-	return call.Common().StaticCallee().Name()
+func getCallName(call *ssa.Call) (string, bool) {
+	if f := call.Common().StaticCallee(); f != nil {
+		return f.Name(), true
+	}
+	return "", false
 }
 
 func getErrorf(instr ssa.Instruction) (*ssa.Call, bool) {
@@ -81,7 +87,8 @@ func getErrorf(instr ssa.Instruction) (*ssa.Call, bool) {
 		return nil, false
 	}
 
-	if getCallName(call) != "Errorf" {
+	name, ok := getCallName(call)
+	if !ok || name != "Errorf" {
 		return nil, false
 	}
 
