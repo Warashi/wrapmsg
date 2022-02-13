@@ -45,9 +45,7 @@ func genWrapmsg(posMap map[token.Pos]ast.Node, currentPackagePath string, call *
 	case *ssa.Call:
 		return genWrapmsg(posMap, currentPackagePath, op) + "." + name
 	case *ssa.UnOp:
-		if ident, ok := posMap[op.X.Pos()].(*ast.Ident); ok {
-			return ident.Name + "." + name
-		}
+		return getChainExp(posMap, op) + name
 	}
 
 	// 再帰終わって最後のreturn
@@ -68,6 +66,33 @@ func genWrapmsg(posMap map[token.Pos]ast.Node, currentPackagePath string, call *
 		}
 	}
 	return name
+}
+
+func getChainExp(posMap map[token.Pos]ast.Node, value ssa.Value) string {
+	switch value := value.(type) {
+	case *ssa.UnOp:
+		return getChainExp(posMap, value.X)
+	case *ssa.Field:
+		ident, ok := posMap[value.Pos()].(*ast.Ident)
+		if !ok {
+			return getChainExp(posMap, value.X)
+		}
+		return getChainExp(posMap, value.X) + ident.Name + "."
+	case *ssa.FieldAddr:
+		ident, ok := posMap[value.Pos()].(*ast.Ident)
+		if !ok {
+			return getChainExp(posMap, value.X)
+		}
+		return getChainExp(posMap, value.X) + ident.Name + "."
+	case *ssa.Alloc:
+		ident, ok := posMap[value.Pos()].(*ast.Ident)
+		if !ok {
+			return ""
+		}
+		return ident.Name + "."
+	default:
+		return ""
+	}
 }
 
 func getCallPackage(call *ssa.Call) *types.Package {

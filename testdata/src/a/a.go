@@ -31,6 +31,21 @@ func f() error {
 		return fmt.Errorf("ctx: %w", err)
 	}
 
+	// call method of field
+	tt := tt{}
+	if err := tt.t.Err(); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `wrapping error message should be "tt.t.Err: %w"`
+	}
+	if err := tt.t.Err(); err != nil {
+		return fmt.Errorf("tt.t.Err: %w", err)
+	}
+	if err := tt.ct.Err(context.Background()); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `wrapping error message should be "tt.ct.Err: %w"`
+	}
+	if err := tt.ct.Err(context.Background()); err != nil {
+		return fmt.Errorf("tt.ct.Err: %w", err)
+	}
+
 	// method chain same package
 	if err := T().Err(); err != nil {
 		return fmt.Errorf("hoge: %w", err) // want `wrapping error message should be "T\.Err: %w"`
@@ -289,3 +304,12 @@ func (t) Err() error {
 func (t) U() t {
 	return t{}
 }
+
+type tt struct {
+	t  t
+	ct ct
+}
+
+type ct struct{}
+
+func (ct) Err(context.Context) error { return nil }
