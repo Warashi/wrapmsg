@@ -1,7 +1,6 @@
 package wrapmsg
 
 import (
-	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -160,9 +159,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	posMap := buildPosMap(inspect)
 
 	for _, f := range s.SrcFuncs {
-		fmt.Println(f)
 		for _, b := range f.Blocks {
-			fmt.Printf("\tBlock %d\n", b.Index)
 			for _, instr := range b.Instrs {
 				if call, ok := getErrorf(instr); ok {
 					args := call.Common().Args
