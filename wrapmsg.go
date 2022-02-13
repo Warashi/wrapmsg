@@ -153,34 +153,37 @@ func buildPosMap(inspect *inspector.Inspector) map[token.Pos]ast.Node {
 	return m
 }
 
+func iterateErrorf(s *buildssa.SSA) []*ssa.Call {
+	var e []*ssa.Call
+	for _, f := range s.SrcFuncs {
+		for _, b := range f.Blocks {
+			for _, instr := range b.Instrs {
+				if call, ok := getErrorf(instr); ok {
+					e = append(e, call)
+				}
+			}
+		}
+	}
+	return e
+}
+
 func run(pass *analysis.Pass) (interface{}, error) {
 	s := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	posMap := buildPosMap(inspect)
 
-	for _, f := range s.SrcFuncs {
-		for _, b := range f.Blocks {
-			for _, instr := range b.Instrs {
-				if call, ok := getErrorf(instr); ok {
-					args := call.Common().Args
-					wrapmsg, ok := getConstString(args[len(args)-2])
-					if !ok {
-						continue
-					}
-					want, ok := GetWrapmsg(posMap, s.Pkg.Pkg, call)
-					if !ok {
-						continue
-					}
-					if wrapmsg != want {
-						pass.Reportf(call.Pos(), "wrapping error message should be %q", want)
-					}
-					/*
-						if !isErrorType(lastArg) {
-							continue
-						}
-					*/
-				}
-			}
+	for _, call := range iterateErrorf(s) {
+		args := call.Common().Args
+		wrapmsg, ok := getConstString(args[len(args)-2])
+		if !ok {
+			continue
+		}
+		want, ok := GetWrapmsg(posMap, s.Pkg.Pkg, call)
+		if !ok {
+			continue
+		}
+		if wrapmsg != want {
+			pass.Reportf(call.Pos(), "wrapping error message should be %q", want)
 		}
 	}
 	return nil, nil
