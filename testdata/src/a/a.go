@@ -316,6 +316,27 @@ func f() error {
 	return nil
 }
 
+type a struct {
+	ct  ct
+	ict interface{ Err(context.Context) error }
+}
+
+func (a *a) A(ctx context.Context) error {
+	if err := a.ct.Err(ctx); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `wrapping error message should be "a\.ct\.Err: %w"`
+	}
+	if err := a.ct.Err(ctx); err != nil {
+		return fmt.Errorf("a.ct.Err: %w", err)
+	}
+	if err := a.ict.Err(ctx); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `wrapping error message should be "a\.ict\.Err: %w"`
+	}
+	if err := a.ict.Err(ctx); err != nil {
+		return fmt.Errorf("a.ict.Err: %w", err)
+	}
+	return nil
+}
+
 func g() error {
 	return nil
 }

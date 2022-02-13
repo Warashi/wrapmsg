@@ -40,13 +40,13 @@ func genWrapmsg(posMap map[token.Pos]ast.Node, currentPackagePath string, call *
 		args = args[1:]
 	}
 	ops = ops[:len(ops)-len(args)] // 引数の分だけ後ろから削る
-	op := ops[len(ops)-1]
-
-	switch op := op.(type) {
-	case *ssa.Call:
-		return genWrapmsg(posMap, currentPackagePath, op) + "." + name
-	case *ssa.UnOp:
-		return strings.Join(append(reverse(getChainExp(posMap, op)), name), ".")
+	for _, op := range ops {
+		switch op := op.(type) {
+		case *ssa.Call:
+			return genWrapmsg(posMap, currentPackagePath, op) + "." + name
+		case *ssa.UnOp:
+			return strings.Join(append(removeLast(getChainExp(posMap, op)), name), ".")
+		}
 	}
 
 	// 再帰終わって最後のreturn
@@ -69,10 +69,11 @@ func genWrapmsg(posMap map[token.Pos]ast.Node, currentPackagePath string, call *
 	return name
 }
 
-func reverse(s []string) []string {
-	r := make([]string, len(s))
-	for i := range s {
-		r[len(s)-i-1] = s[i]
+// よくわからんが重複するので消すやつ
+func removeLast(s []string) []string {
+	r := make([]string, len(s)-1)
+	for i := range r {
+		r[i] = s[i]
 	}
 	return r
 }
@@ -80,11 +81,11 @@ func reverse(s []string) []string {
 func getChainExp(posMap map[token.Pos]ast.Node, value ssa.Value) []string {
 	switch value := value.(type) {
 	case *ssa.UnOp:
-		ident, ok := posMap[value.Pos()-1].(*ast.Ident)
+		ident, ok := posMap[value.Pos()].(*ast.Ident)
 		if !ok {
 			return getChainExp(posMap, value.X)
 		}
-		return append(getChainExp(posMap, value.X)[1:], ident.Name)
+		return append(getChainExp(posMap, value.X), ident.Name)
 	case *ssa.Field:
 		ident, ok := posMap[value.Pos()].(*ast.Ident)
 		if !ok {
@@ -98,11 +99,27 @@ func getChainExp(posMap map[token.Pos]ast.Node, value ssa.Value) []string {
 		}
 		return append(getChainExp(posMap, value.X), ident.Name)
 	case *ssa.Alloc:
-		ident, ok := posMap[value.Pos()].(*ast.Ident)
-		if !ok {
-			return nil
+		for _, instruction := range *value.Referrers() {
+			// 代入している先の変数名を探す
+			if unop, ok := instruction.(*ssa.UnOp); ok {
+				start, ok := posMap[unop.Pos()].(*ast.StarExpr)
+				if !ok {
+					continue
+				}
+				ident, ok := start.X.(*ast.Ident)
+				if !ok {
+					continue
+				}
+				return []string{ident.Name}
+			}
 		}
-		return []string{ident.Name}
+		// 見つからなかったらAllocの場所から適当に取ってくる
+		if ident, ok := posMap[value.Pos()].(*ast.Ident); ok {
+			return []string{ident.Name}
+		}
+		return nil
+	case *ssa.Parameter:
+		return []string{value.Object().Name()}
 	default:
 		return nil
 	}
