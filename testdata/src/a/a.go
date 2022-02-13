@@ -8,12 +8,25 @@ import (
 )
 
 func f() error {
-
 	// call method of interface field
-	itt := itt{
+	ptt := &itt{
 		t:  t{},
 		ct: ct{},
 	}
+	if err := ptt.t.Err(); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `wrapping error message should be "ptt.t.Err: %w"`
+	}
+	if err := ptt.t.Err(); err != nil {
+		return fmt.Errorf("ptt.t.Err: %w", err)
+	}
+	if err := ptt.ct.Err(context.Background()); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `wrapping error message should be "ptt.ct.Err: %w"`
+	}
+	if err := ptt.ct.Err(context.Background()); err != nil {
+		return fmt.Errorf("ptt.ct.Err: %w", err)
+	}
+
+	itt := *ptt
 	if err := itt.t.Err(); err != nil {
 		return fmt.Errorf("hoge: %w", err) // want `wrapping error message should be "itt.t.Err: %w"`
 	}

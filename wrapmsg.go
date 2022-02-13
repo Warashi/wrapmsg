@@ -10,6 +10,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/ssa"
+	"strings"
 )
 
 const doc = "wrapmsg is ..."
@@ -45,7 +46,7 @@ func genWrapmsg(posMap map[token.Pos]ast.Node, currentPackagePath string, call *
 	case *ssa.Call:
 		return genWrapmsg(posMap, currentPackagePath, op) + "." + name
 	case *ssa.UnOp:
-		return getChainExp(posMap, op) + name
+		return strings.Join(append(reverse(getChainExp(posMap, op)), name), ".")
 	}
 
 	// 再帰終わって最後のreturn
@@ -68,30 +69,42 @@ func genWrapmsg(posMap map[token.Pos]ast.Node, currentPackagePath string, call *
 	return name
 }
 
-func getChainExp(posMap map[token.Pos]ast.Node, value ssa.Value) string {
+func reverse(s []string) []string {
+	r := make([]string, len(s))
+	for i := range s {
+		r[len(s)-i-1] = s[i]
+	}
+	return r
+}
+
+func getChainExp(posMap map[token.Pos]ast.Node, value ssa.Value) []string {
 	switch value := value.(type) {
 	case *ssa.UnOp:
-		return getChainExp(posMap, value.X)
+		ident, ok := posMap[value.Pos()-1].(*ast.Ident)
+		if !ok {
+			return getChainExp(posMap, value.X)
+		}
+		return append(getChainExp(posMap, value.X)[1:], ident.Name)
 	case *ssa.Field:
 		ident, ok := posMap[value.Pos()].(*ast.Ident)
 		if !ok {
 			return getChainExp(posMap, value.X)
 		}
-		return getChainExp(posMap, value.X) + ident.Name + "."
+		return append(getChainExp(posMap, value.X), ident.Name)
 	case *ssa.FieldAddr:
 		ident, ok := posMap[value.Pos()].(*ast.Ident)
 		if !ok {
 			return getChainExp(posMap, value.X)
 		}
-		return getChainExp(posMap, value.X) + ident.Name + "."
+		return append(getChainExp(posMap, value.X), ident.Name)
 	case *ssa.Alloc:
 		ident, ok := posMap[value.Pos()].(*ast.Ident)
 		if !ok {
-			return ""
+			return nil
 		}
-		return ident.Name + "."
+		return []string{ident.Name}
 	default:
-		return ""
+		return nil
 	}
 }
 
