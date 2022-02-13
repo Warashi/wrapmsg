@@ -50,7 +50,19 @@ func genWrapmsg(posMap map[token.Pos]ast.Node, currentPackagePath string, call *
 	pkg := getCallPackage(call)
 	if currentPackagePath != pkg.Path() {
 		// 現在のpackageと違うpackageを呼んでる
-		return pkg.Name() + "." + name
+		for i := posMap[call.Pos()].Pos() - 1; ; i-- {
+			// 頑張って遡って実際の記述を見る
+			// 安易に pkg.Name() を使うと import alias に対応できない……
+			node, ok := posMap[i]
+			if !ok {
+				continue
+			}
+			ident, ok := node.(*ast.Ident)
+			if !ok {
+				continue
+			}
+			return ident.Name + "." + name
+		}
 	}
 	return name
 }
