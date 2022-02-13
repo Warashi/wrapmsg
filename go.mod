@@ -1,4 +1,4 @@
-module wrapmsg
+module github.com/Warashi/wrapmsg
 
 go 1.17
 
