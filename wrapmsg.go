@@ -26,27 +26,22 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func genWrapmsg(posMap map[token.Pos]ast.Node, currentPackagePath string, call *ssa.Call) string {
-	var prefix string
+	name := getCallName(call)
+	pkg := getCallPackage(call)
+
 	ops := getOperands(call)
-	for _, op := range ops {
-		switch op := op.(type) {
-		case *ssa.Call:
-			prefix = genWrapmsg(posMap, currentPackagePath, op)
-		case *ssa.UnOp:
-			if ident, ok := posMap[op.X.Pos()].(*ast.Ident); ok {
-				prefix = ident.Name
-			}
-		default:
+	op := ops[len(ops)-1]
+
+	switch op := op.(type) {
+	case *ssa.Call:
+		return genWrapmsg(posMap, currentPackagePath, op) + "." + name
+	case *ssa.UnOp:
+		if ident, ok := posMap[op.X.Pos()].(*ast.Ident); ok {
+			return ident.Name + "." + name
 		}
 	}
 
-	name := getCallName(call)
-	if prefix != "" {
-		// まだ再帰の途中
-		return prefix + "." + name
-	}
 	// 再帰終わって最後のreturn
-	pkg := getCallPackage(call)
 	if currentPackagePath != pkg.Path() {
 		// 現在のpackageと違うpackageを呼んでる
 		for i := posMap[call.Pos()].Pos() - 1; ; i-- {
