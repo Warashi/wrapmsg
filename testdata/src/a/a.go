@@ -3,6 +3,7 @@ package a
 import (
 	"a/b"
 	c "a/b"
+	"context"
 	"fmt"
 )
 
@@ -13,6 +14,21 @@ func f() error {
 	}
 	if err := g(); err != nil {
 		return fmt.Errorf("g: %w", err)
+	}
+
+	if err := ctx(context.Background()); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `wrapping error message should be "ctx: %w"`
+	}
+	if err := ctx(context.Background()); err != nil {
+		return fmt.Errorf("ctx: %w", err)
+	}
+
+	tmp := context.Background()
+	if err := ctx(tmp); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `wrapping error message should be "ctx: %w"`
+	}
+	if err := ctx(tmp); err != nil {
+		return fmt.Errorf("ctx: %w", err)
 	}
 
 	// method chain same package
@@ -254,6 +270,10 @@ func f() error {
 }
 
 func g() error {
+	return nil
+}
+
+func ctx(context.Context) error {
 	return nil
 }
 
