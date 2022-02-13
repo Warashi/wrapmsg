@@ -2,12 +2,14 @@ package wrapmsg
 
 import (
 	"fmt"
+	"go/ast"
 	"go/constant"
+	"go/token"
 	"go/types"
-	"log"
-
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/ssa"
 )
 
@@ -19,20 +21,24 @@ var Analyzer = &analysis.Analyzer{
 	Doc:  doc,
 	Run:  run,
 	Requires: []*analysis.Analyzer{
+		inspect.Analyzer,
 		buildssa.Analyzer,
 	},
 }
 
-func genWrapmsg(currentPackagePath string, call *ssa.Call) string {
+func genWrapmsg(posMap map[token.Pos]ast.Node, currentPackagePath string, call *ssa.Call) string {
 	var prefix string
 	ops := getOperands(call)
 	for _, op := range ops {
-		call, ok := op.(*ssa.Call)
-		if !ok {
-			fmt.Printf("\t\t%[1]T\t%[1]v(%[1]p)\n", op)
-			continue
+		switch op := op.(type) {
+		case *ssa.Call:
+			prefix = genWrapmsg(posMap, currentPackagePath, op)
+		case *ssa.UnOp:
+			if ident, ok := posMap[op.X.Pos()].(*ast.Ident); ok {
+				prefix = ident.Name
+			}
+		default:
 		}
-		prefix = genWrapmsg(currentPackagePath, call)
 	}
 
 	name := getCallName(call)
@@ -47,28 +53,6 @@ func genWrapmsg(currentPackagePath string, call *ssa.Call) string {
 		return pkg.Name() + "." + name
 	}
 	return name
-}
-
-func isStringParam(p *ssa.Parameter) bool {
-	typ, ok := p.Type().(*types.Basic)
-	if !ok {
-		return false
-	}
-	if typ.Kind() != types.String {
-		return false
-	}
-	return true
-}
-
-func isInterfaceSlice(p *ssa.Parameter) bool {
-	typ, ok := p.Type().(*types.Slice)
-	if !ok {
-		return false
-	}
-	if itf, ok := typ.Elem().(*types.Interface); ok && itf.Empty() {
-		return true
-	}
-	return false
 }
 
 func getCallPackage(call *ssa.Call) *types.Package {
@@ -103,17 +87,7 @@ func getConstString(val ssa.Value) (string, bool) {
 	return constant.StringVal(msg.Value), true
 }
 
-var errType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
-
-func isErrorType(val ssa.Value) bool {
-	return types.Implements(val.Type(), errType)
-}
-
-type operander interface {
-	Operands([]*ssa.Value) []*ssa.Value
-}
-
-func getOperands(v operander) []ssa.Value {
+func getOperands(v ssa.Instruction) []ssa.Value {
 	ops := v.Operands(nil)
 	r := make([]ssa.Value, 0, len(ops))
 	for _, op := range ops {
@@ -125,11 +99,7 @@ func getOperands(v operander) []ssa.Value {
 	return r
 }
 
-type referrrers interface {
-	Referrers() *[]ssa.Instruction
-}
-
-func GetWrapmsg(pkg *types.Package ,call *ssa.Call) (string, bool) {
+func GetWrapmsg(posMap map[token.Pos]ast.Node, pkg *types.Package, call *ssa.Call) (string, bool) {
 	args := call.Common().Args
 	values, ok := args[len(args)-1].(*ssa.Slice)
 	if !ok {
@@ -153,7 +123,7 @@ func GetWrapmsg(pkg *types.Package ,call *ssa.Call) (string, bool) {
 					if !ok {
 						continue
 					}
-					funcNames := genWrapmsg(pkg.Path(), call)
+					funcNames := genWrapmsg(posMap, pkg.Path(), call)
 					return funcNames + ": %w", true
 				}
 			}
@@ -162,8 +132,21 @@ func GetWrapmsg(pkg *types.Package ,call *ssa.Call) (string, bool) {
 	return "", false
 }
 
+func buildPosMap(inspect *inspector.Inspector) map[token.Pos]ast.Node {
+	m := make(map[token.Pos]ast.Node)
+	inspect.Preorder(nil, func(node ast.Node) {
+		for i := node.Pos(); i <= node.End(); i++ {
+			m[i] = node
+		}
+	})
+	return m
+}
+
 func run(pass *analysis.Pass) (interface{}, error) {
 	s := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
+	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	posMap := buildPosMap(inspect)
+
 	for _, f := range s.SrcFuncs {
 		fmt.Println(f)
 		for _, b := range f.Blocks {
@@ -175,8 +158,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 					if !ok {
 						continue
 					}
-					log.Println(GetWrapmsg(s.Pkg.Pkg, call))
-					want, ok := GetWrapmsg(s.Pkg.Pkg, call)
+					want, ok := GetWrapmsg(posMap, s.Pkg.Pkg, call)
 					if !ok {
 						continue
 					}
