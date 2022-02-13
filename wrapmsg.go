@@ -30,6 +30,12 @@ func genWrapmsg(posMap map[token.Pos]ast.Node, currentPackagePath string, call *
 	pkg := getCallPackage(call)
 
 	ops := getOperands(call)
+	args := call.Common().Args
+	if call.Common().Signature().Recv() != nil {
+		// 1つ目はレシーバ
+		args = args[1:]
+	}
+	ops = ops[:len(ops)-len(args)] // 引数の分だけ後ろから削る
 	op := ops[len(ops)-1]
 
 	switch op := op.(type) {
