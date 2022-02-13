@@ -3,7 +3,7 @@ package wrapmsg_test
 import (
 	"testing"
 
-	"wrapmsg"
+	"github.com/Warashi/wrapmsg"
 
 	"github.com/gostaticanalysis/testutil"
 	"golang.org/x/tools/go/analysis/analysistest"
