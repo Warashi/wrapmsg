@@ -1,7 +1,7 @@
 package main
 
 import (
-	"wrapmsg"
+	"github.com/Warashi/wrapmsg"
 
 	"golang.org/x/tools/go/analysis/unitchecker"
 )
