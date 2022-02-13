@@ -34,7 +34,7 @@ func genWrapmsg(posMap map[token.Pos]ast.Node, currentPackagePath string, call *
 
 	ops := getOperands(call)
 	args := call.Common().Args
-	if call.Common().Signature().Recv() != nil {
+	if recv := call.Common().Signature().Recv(); recv != nil && !types.IsInterface(recv.Type()) {
 		// 1つ目はレシーバ
 		args = args[1:]
 	}
@@ -96,10 +96,16 @@ func getChainExp(posMap map[token.Pos]ast.Node, value ssa.Value) string {
 }
 
 func getCallPackage(call *ssa.Call) *types.Package {
+	if f := call.Common().Method; f != nil {
+		return f.Pkg()
+	}
 	return call.Common().StaticCallee().Package().Pkg
 }
 
 func getCallName(call *ssa.Call) (string, bool) {
+	if f := call.Common().Method; f != nil {
+		return f.Name(), true
+	}
 	if f := call.Common().StaticCallee(); f != nil {
 		return f.Name(), true
 	}

@@ -8,6 +8,25 @@ import (
 )
 
 func f() error {
+
+	// call method of interface field
+	itt := itt{
+		t:  t{},
+		ct: ct{},
+	}
+	if err := itt.t.Err(); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `wrapping error message should be "itt.t.Err: %w"`
+	}
+	if err := itt.t.Err(); err != nil {
+		return fmt.Errorf("itt.t.Err: %w", err)
+	}
+	if err := itt.ct.Err(context.Background()); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `wrapping error message should be "itt.ct.Err: %w"`
+	}
+	if err := itt.ct.Err(context.Background()); err != nil {
+		return fmt.Errorf("itt.ct.Err: %w", err)
+	}
+
 	// call same package
 	if err := g(); err != nil {
 		return fmt.Errorf("hoge: %w", err) // want `wrapping error message should be "g: %w"`
@@ -308,6 +327,10 @@ func (t) U() t {
 type tt struct {
 	t  t
 	ct ct
+}
+type itt struct {
+	t  interface{ Err() error }
+	ct interface{ Err(context.Context) error }
 }
 
 type ct struct{}
