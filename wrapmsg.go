@@ -71,6 +71,9 @@ func genWrapmsg(posMap map[token.Pos]ast.Node, currentPackagePath string, call *
 
 // よくわからんが重複するので消すやつ
 func removeLast(s []string) []string {
+	if len(s) == 0 {
+		return nil
+	}
 	r := make([]string, len(s)-1)
 	for i := range r {
 		r[i] = s[i]
