@@ -1,8 +1,11 @@
 package wrapmsg
 
 import (
+	"bytes"
+	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/format"
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/analysis"
@@ -10,6 +13,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/ssa"
+	"strconv"
 	"strings"
 )
 
@@ -239,6 +243,16 @@ func iterateErrorf(s *buildssa.SSA) []*ssa.Call {
 	return e
 }
 
+func getCallExpr(posMap map[token.Pos]ast.Node, call *ssa.Call) *ast.CallExpr {
+	node := posMap[call.Pos()]
+	for {
+		if call, ok := node.(*ast.CallExpr); ok {
+			return call
+		}
+		node = posMap[node.End()+1]
+	}
+}
+
 func run(pass *analysis.Pass) (interface{}, error) {
 	s := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
@@ -255,7 +269,30 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			continue
 		}
 		if wrapmsg != want {
-			pass.Reportf(call.Pos(), "wrapping error message should be %q", want)
+			ce := getCallExpr(posMap, call)
+			msgarg := ce.Args[len(ce.Args)-2]
+			ce.Args[len(ce.Args)-2] = &ast.BasicLit{
+				ValuePos: msgarg.Pos(),
+				Kind:     token.STRING,
+				Value:    strconv.Quote(want),
+			}
+			buf := new(bytes.Buffer)
+			format.Node(buf, token.NewFileSet(), ce)
+
+			pass.Report(
+				analysis.Diagnostic{
+					Pos:     ce.Pos(),
+					End:     ce.End(),
+					Message: fmt.Sprintf("wrapping error message should be %q", want),
+					SuggestedFixes: []analysis.SuggestedFix{
+						{
+							Message:   "suggest",
+							TextEdits: []analysis.TextEdit{{Pos: ce.Pos(), End: ce.End(), NewText: buf.Bytes()}},
+						},
+					},
+					Related: nil,
+				},
+			)
 		}
 	}
 	return nil, nil
