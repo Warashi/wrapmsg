@@ -8,13 +8,14 @@ import (
 	"go/format"
 	"go/token"
 	"go/types"
+	"strconv"
+	"strings"
+
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/ssa"
-	"strconv"
-	"strings"
 )
 
 const doc = "wrapmsg is ..."
