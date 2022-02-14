@@ -1,13 +1,24 @@
 package a
 
 import (
-	"a/b"
-	c "a/b"
 	"context"
 	"fmt"
+
+	"a/b"
+	c "a/b"
 )
 
 func f() error {
+	r := r{}
+	for _, t := range r.r(context.Background()) {
+		if err := t.Err(context.Background()); err != nil {
+			return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "t.Err: %w"`
+		}
+		if err := t.Err(context.Background()); err != nil {
+			return fmt.Errorf("t.Err: %w", err)
+		}
+	}
+
 	// non-error
 	_ = fmt.Errorf("new error")
 	_ = fmt.Errorf("new error with format: %d", 10)
@@ -398,3 +409,9 @@ type itt struct {
 type ct struct{}
 
 func (ct) Err(context.Context) error { return nil }
+
+type r struct{}
+
+func (r) r(context.Context) []*ct {
+	return nil
+}
