@@ -84,6 +84,28 @@ func f() error {
 		return fmt.Errorf("tt.ct.Err: %w", err)
 	}
 
+	// range variable
+	for _, ct := range []ct{{}, {}} {
+		if err := ct.Err(context.Background()); err != nil {
+			return fmt.Errorf("ct.Err: %w", err) // want `the error-wrapping message should be "ct.Err: %w"`
+		}
+	}
+	for _, ct := range []ct{{}, {}} {
+		if err := ct.Err(context.Background()); err != nil {
+			return fmt.Errorf("ct.Err: %w", err)
+		}
+	}
+	for _, ct := range []*ct{{}, {}} {
+		if err := ct.Err(context.Background()); err != nil {
+			return fmt.Errorf("ct.Err: %w", err) // want `the error-wrapping message should be "ct.Err: %w"`
+		}
+	}
+	for _, ct := range []*ct{{}, {}} {
+		if err := ct.Err(context.Background()); err != nil {
+			return fmt.Errorf("ct.Err: %w", err)
+		}
+	}
+
 	// method chain same package
 	if err := T().Err(); err != nil {
 		return fmt.Errorf("T.Err: %w", err) // want `the error-wrapping message should be "T\.Err: %w"`
