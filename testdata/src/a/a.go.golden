@@ -12,7 +12,7 @@ func f() error {
 	r := r{}
 	for _, t := range r.r(context.Background()) {
 		if err := t.Err(context.Background()); err != nil {
-			return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "t.Err: %w"`
+			return fmt.Errorf("t.Err: %w", err) // want `the error-wrapping message should be "t.Err: %w"`
 		}
 		if err := t.Err(context.Background()); err != nil {
 			return fmt.Errorf("t.Err: %w", err)
@@ -409,3 +409,9 @@ type itt struct {
 type ct struct{}
 
 func (ct) Err(context.Context) error { return nil }
+
+type r struct{}
+
+func (r) r(context.Context) []*ct {
+	return nil
+}
