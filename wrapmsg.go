@@ -253,6 +253,23 @@ func getCallExpr(posMap map[token.Pos]ast.Node, call *ssa.Call) *ast.CallExpr {
 	}
 }
 
+func getFirstConstString(expr []ast.Expr) (i int, e *ast.BasicLit) {
+	for i, e := range expr {
+		lit, ok := e.(*ast.BasicLit)
+		if !ok {
+			continue
+		}
+		if !lit.Kind.IsLiteral() {
+			continue
+		}
+		if lit.Kind != token.STRING {
+			continue
+		}
+		return i, lit
+	}
+	return -1, nil
+}
+
 func run(pass *analysis.Pass) (interface{}, error) {
 	s := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
@@ -270,8 +287,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 		if wrapmsg != want {
 			ce := getCallExpr(posMap, call)
-			msgarg := ce.Args[len(ce.Args)-2]
-			ce.Args[len(ce.Args)-2] = &ast.BasicLit{
+			i, msgarg := getFirstConstString(ce.Args)
+			if i < 0 {
+				continue
+			}
+			ce.Args[i] = &ast.BasicLit{
 				ValuePos: msgarg.Pos(),
 				Kind:     token.STRING,
 				Value:    strconv.Quote(want),
