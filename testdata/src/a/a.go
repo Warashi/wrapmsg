@@ -8,6 +8,10 @@ import (
 )
 
 func f() error {
+	// non-error
+	_ = fmt.Errorf("new error")
+	_ = fmt.Errorf("new error with format: %d", 10)
+
 	// call method of interface field
 	ptt := &itt{
 		t:  t{},
