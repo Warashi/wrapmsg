@@ -8,8 +8,30 @@ import (
 	c "a/b"
 )
 
+func (mm mmu) Err(ctx context.Context) error {
+	for _, m := range mm {
+		if err := m.Err(ctx); err != nil {
+			return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "m.Err: %w"`
+		}
+		if err := m.Err(ctx); err != nil {
+			return fmt.Errorf("m.Err: %w", err)
+		}
+	}
+	return nil
+}
+
 func f() error {
 	r := r{}
+	rr := r.r(context.Background())
+	for _, t := range rr {
+		if err := t.Err(context.Background()); err != nil {
+			return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "t.Err: %w"`
+		}
+		if err := t.Err(context.Background()); err != nil {
+			return fmt.Errorf("t.Err: %w", err)
+		}
+	}
+
 	for _, t := range r.r(context.Background()) {
 		if err := t.Err(context.Background()); err != nil {
 			return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "t.Err: %w"`
@@ -415,3 +437,8 @@ type r struct{}
 func (r) r(context.Context) []*ct {
 	return nil
 }
+
+type ict interface {
+	Err(context.Context) error
+}
+type mmu []ict
