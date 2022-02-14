@@ -283,7 +283,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				analysis.Diagnostic{
 					Pos:     ce.Pos(),
 					End:     ce.End(),
-					Message: fmt.Sprintf("wrapping error message should be %q", want),
+					Message: fmt.Sprintf("the error-wrapping message should be %q", want),
 					SuggestedFixes: []analysis.SuggestedFix{
 						{
 							Message:   "suggest",
