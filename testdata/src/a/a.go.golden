@@ -11,6 +11,8 @@ func f() error {
 	// non-error
 	_ = fmt.Errorf("new error")
 	_ = fmt.Errorf("new error with format: %d", 10)
+	var msg string
+	_ = fmt.Errorf(msg)
 
 	// call method of interface field
 	ptt := &itt{
