@@ -105,6 +105,14 @@ func getChainExp(posMap map[token.Pos]ast.Node, value ssa.Value) []string {
 			return getChainExp(posMap, value.X)
 		}
 		return append(getChainExp(posMap, value.X), ident.Name)
+	case *ssa.IndexAddr:
+		ident, ok := posMap[value.Pos()].(*ast.Ident)
+		if !ok {
+			return getChainExp(posMap, value.X)
+		}
+		return append(getChainExp(posMap, value.X), ident.Name)
+	case *ssa.Slice:
+		return getChainExp(posMap, value.X)
 	case *ssa.Alloc:
 		for _, instruction := range *value.Referrers() {
 			// 代入している先の変数名を探す
