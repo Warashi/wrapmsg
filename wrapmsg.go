@@ -88,6 +88,20 @@ func removeLast(s []string) []string {
 
 func getChainExp(posMap map[token.Pos]ast.Node, value ssa.Value) []string {
 	switch value := value.(type) {
+	case *ssa.Call:
+		for _, instruction := range *value.Referrers() {
+			for node := posMap[instruction.Pos()-1]; node != nil; node = posMap[node.Pos()-1] {
+				switch node := node.(type) {
+				case *ast.RangeStmt:
+					ident, ok := node.Value.(*ast.Ident)
+					if !ok {
+						continue
+					}
+					return []string{ident.Name}
+				}
+			}
+		}
+		return nil
 	case *ssa.UnOp:
 		ident, ok := posMap[value.Pos()].(*ast.Ident)
 		if !ok {
