@@ -104,6 +104,12 @@ func getIdentName(v interface{ Pos() token.Pos }) []string {
 	case *ssa.Parameter:
 		fmt.Println("Parameter:", v.Object().Name())
 		return []string{v.Object().Name()}
+	case *ssa.Function:
+		fmt.Println("Function:", v.Object().Name())
+		break
+	default:
+		fmt.Printf("Default(%[1]T): %[1]v\n", v)
+		return nil
 	}
 
 	if !ok {
