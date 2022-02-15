@@ -204,16 +204,16 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	case *ssa.Call:
 		var ret []string
 		switch {
-		case !v.Common().IsInvoke() && v.Common().Signature().Recv() != nil:
-			// interfaceではないメソッド呼び出し
-			if r, ok := w.walk(depth, v.Common().Args[0]); ok {
-				ret = append(ret, r...)
-			}
 		case v.Common().IsInvoke():
 			// interfaceからのメソッド呼び出し
 			switch v := getCallExpr(v).Fun.(type) {
 			case *ast.SelectorExpr:
 				ret = append(ret, getIdentName(v.X)...)
+			}
+		case v.Common().Signature().Recv() != nil:
+			// interfaceではないメソッド呼び出し
+			if r, ok := w.walk(depth, v.Common().Args[0]); ok {
+				ret = append(ret, r...)
 			}
 		case getCallPackage(v) != builtssa.Pkg.Pkg:
 			// 別パッケージを呼んでる
