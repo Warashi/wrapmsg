@@ -8,6 +8,15 @@ import (
 )
 
 func f() error {
+	// call method
+	t := T()
+	if err := t.Err(); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "t\.Err: %w"`
+	}
+	if err := t.Err(); err != nil {
+		return fmt.Errorf("t.Err: %w", err)
+	}
+
 	// call other package
 	if err := b.F(); err != nil {
 		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "b\.F: %w"`
@@ -44,4 +53,16 @@ func g() error {
 }
 func ctx(context.Context) error {
 	return nil
+}
+func T(_ ...int) t {
+	return t{}
+}
+
+type t struct{}
+
+func (t) Err() error {
+	return nil
+}
+func (t) U() t {
+	return t{}
 }
