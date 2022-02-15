@@ -8,6 +8,14 @@ import (
 )
 
 func f() error {
+	// method chain same package
+	if err := T().Err(); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "T\.Err: %w"`
+	}
+	if err := T().Err(); err != nil {
+		return fmt.Errorf("T.Err: %w", err)
+	}
+
 	// call method
 	t := T()
 	if err := t.Err(); err != nil {
