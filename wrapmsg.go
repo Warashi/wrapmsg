@@ -176,11 +176,13 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	case *ssa.ChangeInterface:
 		return w.walkOperands(depth+1, v)
 	case *ssa.Call:
+		if v.Common().Signature().Recv() != nil {
+			if r, ok := w.walk(depth, v.Common().Args[0]); ok {
+				return append(r, getIdentName(org)...), true
+			}
+		}
 		return w.walkOperands(depth+1, v)
 	case *ssa.UnOp:
-		if r, ok := w.walk(depth+1, v.X); ok {
-			return append(r, getIdentName(org)...), true
-		}
 		return getIdentName(v), true
 	case *ssa.Parameter:
 		return getIdentName(v), true
