@@ -8,37 +8,20 @@ import (
 	c "a/b"
 )
 
-func (mm mmu) Err(ctx context.Context) error {
-	for _, m := range mm {
-		if err := m.Err(ctx); err != nil {
-			return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "m.Err: %w"`
-		}
-		if err := m.Err(ctx); err != nil {
-			return fmt.Errorf("m.Err: %w", err)
-		}
-	}
-	return nil
-}
-
 func f() error {
-	r := r{}
-	rr := r.r(context.Background())
-	for _, t := range rr {
-		if err := t.Err(context.Background()); err != nil {
-			return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "t.Err: %w"`
-		}
-		if err := t.Err(context.Background()); err != nil {
-			return fmt.Errorf("t.Err: %w", err)
-		}
+	// call method of field
+	tt := tt{}
+	if err := tt.t.Err(); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "tt.t.Err: %w"`
 	}
-
-	for _, t := range r.r(context.Background()) {
-		if err := t.Err(context.Background()); err != nil {
-			return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "t.Err: %w"`
-		}
-		if err := t.Err(context.Background()); err != nil {
-			return fmt.Errorf("t.Err: %w", err)
-		}
+	if err := tt.t.Err(); err != nil {
+		return fmt.Errorf("tt.t.Err: %w", err)
+	}
+	if err := tt.ct.Err(context.Background()); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "tt.ct.Err: %w"`
+	}
+	if err := tt.ct.Err(context.Background()); err != nil {
+		return fmt.Errorf("tt.ct.Err: %w", err)
 	}
 
 	// non-error
@@ -46,38 +29,6 @@ func f() error {
 	_ = fmt.Errorf("new error with format: %d", 10)
 	var msg string
 	_ = fmt.Errorf(msg)
-
-	// call method of interface field
-	ptt := &itt{
-		t:  t{},
-		ct: ct{},
-	}
-	if err := ptt.t.Err(); err != nil {
-		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "ptt.t.Err: %w"`
-	}
-	if err := ptt.t.Err(); err != nil {
-		return fmt.Errorf("ptt.t.Err: %w", err)
-	}
-	if err := ptt.ct.Err(context.Background()); err != nil {
-		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "ptt.ct.Err: %w"`
-	}
-	if err := ptt.ct.Err(context.Background()); err != nil {
-		return fmt.Errorf("ptt.ct.Err: %w", err)
-	}
-
-	itt := *ptt
-	if err := itt.t.Err(); err != nil {
-		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "itt.t.Err: %w"`
-	}
-	if err := itt.t.Err(); err != nil {
-		return fmt.Errorf("itt.t.Err: %w", err)
-	}
-	if err := itt.ct.Err(context.Background()); err != nil {
-		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "itt.ct.Err: %w"`
-	}
-	if err := itt.ct.Err(context.Background()); err != nil {
-		return fmt.Errorf("itt.ct.Err: %w", err)
-	}
 
 	// call same package
 	if err := g(); err != nil {
@@ -102,21 +53,6 @@ func f() error {
 		return fmt.Errorf("ctx: %w", err)
 	}
 
-	// call method of field
-	tt := tt{}
-	if err := tt.t.Err(); err != nil {
-		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "tt.t.Err: %w"`
-	}
-	if err := tt.t.Err(); err != nil {
-		return fmt.Errorf("tt.t.Err: %w", err)
-	}
-	if err := tt.ct.Err(context.Background()); err != nil {
-		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "tt.ct.Err: %w"`
-	}
-	if err := tt.ct.Err(context.Background()); err != nil {
-		return fmt.Errorf("tt.ct.Err: %w", err)
-	}
-
 	// range variable
 	for _, ct := range []ct{{}, {}} {
 		if err := ct.Err(context.Background()); err != nil {
@@ -124,16 +60,6 @@ func f() error {
 		}
 	}
 	for _, ct := range []ct{{}, {}} {
-		if err := ct.Err(context.Background()); err != nil {
-			return fmt.Errorf("ct.Err: %w", err)
-		}
-	}
-	for _, ct := range []*ct{{}, {}} {
-		if err := ct.Err(context.Background()); err != nil {
-			return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "ct.Err: %w"`
-		}
-	}
-	for _, ct := range []*ct{{}, {}} {
 		if err := ct.Err(context.Background()); err != nil {
 			return fmt.Errorf("ct.Err: %w", err)
 		}
@@ -374,6 +300,18 @@ func f() error {
 		return fmt.Errorf("c.T.U.Err: %w", err)
 	}
 
+	return nil
+}
+
+func (mm mmu) Err(ctx context.Context) error {
+	for _, m := range mm {
+		if err := m.Err(ctx); err != nil {
+			return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "m.Err: %w"`
+		}
+		if err := m.Err(ctx); err != nil {
+			return fmt.Errorf("m.Err: %w", err)
+		}
+	}
 	return nil
 }
 
