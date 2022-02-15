@@ -116,6 +116,14 @@ func getIdentName(v poser) []string {
 	case *ast.Ident:
 		fmt.Println("ast.Ident", v.Name)
 		return []string{v.Name}
+	case *ast.SelectorExpr:
+		fmt.Printf("ast.SelectorExpr(X: %v, Sel: %v)\n", v.X, v.Sel)
+		return nil
+	case *ast.CallExpr:
+		if ok {
+			fmt.Println("ast.CallExpr:", ident.Name)
+		}
+		return nil
 	default:
 		fmt.Printf("Default(%[1]T)[%[2]v]: %[1]v\n", v, ok)
 		return nil
@@ -209,6 +217,8 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 			switch v := getCallExpr(v).Fun.(type) {
 			case *ast.SelectorExpr:
 				ret = append(ret, getIdentName(v.X)...)
+			default:
+				fmt.Printf("Default(%[1]T): %[1]v\n", v)
 			}
 		case v.Common().Signature().Recv() != nil:
 			// interfaceではないメソッド呼び出し
