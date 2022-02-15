@@ -171,6 +171,8 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 		return w.walkOperands(depth+1, v)
 	case *ssa.Alloc:
 		return w.walkRefs(depth+1, v)
+	case *ssa.FieldAddr:
+		return w.walkOperands(depth+1, v)
 	case *ssa.IndexAddr:
 		return w.walkRefs(depth+1, v)
 	case *ssa.Store:
@@ -199,7 +201,18 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 			return ret, true
 		}
 	case *ssa.UnOp:
-		return getIdentName(v), true
+		var ret []string
+		for _, v := range GetOperands(v) {
+			switch v.(type) {
+			case *ssa.FieldAddr:
+				if r, ok := w.walk(depth+1, v); ok {
+					ret = append(ret, r...)
+				}
+			default:
+				fmt.Printf("Default(%[1]T): %[1]v\n", v)
+			}
+		}
+		return append(ret, getIdentName(v)...), true
 	case *ssa.Parameter:
 		return getIdentName(v), true
 	case *ssa.Function:

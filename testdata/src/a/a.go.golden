@@ -7,6 +7,31 @@ import (
 	"a/b"
 )
 
+type ct struct{}
+
+func (ct) Err(context.Context) error { return nil }
+
+type a struct {
+	ct  ct
+	ict interface{ Err(context.Context) error }
+}
+
+func (a *a) A(ctx context.Context) error {
+	if err := a.ct.Err(ctx); err != nil {
+		return fmt.Errorf("a.ct.Err: %w", err) // want `the error-wrapping message should be "a\.ct\.Err: %w"`
+	}
+	if err := a.ct.Err(ctx); err != nil {
+		return fmt.Errorf("a.ct.Err: %w", err)
+	}
+	if err := a.ict.Err(ctx); err != nil {
+		return fmt.Errorf("a.ict.Err: %w", err) // want `the error-wrapping message should be "a\.ict\.Err: %w"`
+	}
+	if err := a.ict.Err(ctx); err != nil {
+		return fmt.Errorf("a.ict.Err: %w", err)
+	}
+	return nil
+}
+
 func (mm mmu) mmuerr(ctx context.Context) error {
 	for _, m := range mm {
 		if err := m.Err(ctx); err != nil {
