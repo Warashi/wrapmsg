@@ -63,7 +63,7 @@ func (w *walker) contains(n interface{}) bool {
 	return false
 }
 
-func getIdentName(v interface{ Pos() token.Pos }) []string {
+func getIdentName(v poser) []string {
 	ident, ok := posMap[v.Pos()].(*ast.Ident)
 	switch v := v.(type) {
 	case *ssa.Slice:
