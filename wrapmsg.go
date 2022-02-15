@@ -265,6 +265,8 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	case *ssa.Function:
 		r := getIdentName(v)
 		return r, true
+	default:
+		log.Printf("Default(%[1]T): %[1]v\n", v)
 	}
 	return nil, false
 }
