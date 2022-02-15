@@ -5,6 +5,12 @@ import (
 )
 
 func f() error {
+	// non-error
+	_ = fmt.Errorf("new error")
+	_ = fmt.Errorf("new error with format: %d", 10)
+	var msg string
+	_ = fmt.Errorf(msg)
+
 	// call same package
 	if err := g(); err != nil {
 		return fmt.Errorf("g: %w", err) // want `the error-wrapping message should be "g: %w"`
