@@ -234,13 +234,11 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	case *ssa.UnOp:
 		var ret []string
 		for _, v := range GetOperands(v) {
-			switch v.(type) {
-			case *ssa.FieldAddr:
-				if r, ok := w.walk(depth+1, v); ok {
-					ret = append(ret, r...)
-				}
-			default:
-				fmt.Printf("Default(%[1]T): %[1]v\n", v)
+			if _, ok := v.(*ssa.Alloc); ok {
+				continue
+			}
+			if r, ok := w.walk(depth+1, v); ok {
+				ret = append(ret, r...)
 			}
 		}
 		return append(ret, getIdentName(v)...), true
