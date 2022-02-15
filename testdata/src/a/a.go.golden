@@ -9,15 +9,12 @@ import (
 )
 
 func f() error {
-	r := r{}
-	rr := r.r(context.Background())
-	for _, t := range rr {
-		if err := t.Err(context.Background()); err != nil {
-			return fmt.Errorf("t.Err: %w", err) // want `the error-wrapping message should be "t.Err: %w"`
-		}
-		if err := t.Err(context.Background()); err != nil {
-			return fmt.Errorf("t.Err: %w", err)
-		}
+	var ptr *p
+	if err := ptr.Err(); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "ptr.Err: %w"`
+	}
+	if err := ptr.Err(); err != nil {
+		return fmt.Errorf("ptr.Err: %w", err)
 	}
 
 	// non-error
@@ -391,3 +388,7 @@ type ict interface {
 	Err(context.Context) error
 }
 type mmu []ict
+
+type p struct{}
+
+func (*p) Err() error { return nil }
