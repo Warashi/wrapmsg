@@ -1,9 +1,13 @@
 package wrapmsg
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
+	"go/constant"
+	"go/format"
 	"go/token"
+	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -39,10 +43,10 @@ func printIndent(depth int) {
 }
 
 type walker struct {
-	stack []string
+	stack []interface{}
 }
 
-func (w *walker) push(n string) {
+func (w *walker) push(n interface{}) {
 	w.stack = append(w.stack, n)
 }
 
@@ -50,7 +54,7 @@ func (w *walker) pop() {
 	w.stack = w.stack[:len(w.stack)-1]
 }
 
-func (w *walker) contains(n string) bool {
+func (w *walker) contains(n interface{}) bool {
 	for _, s := range w.stack {
 		if s == n {
 			return true
@@ -109,113 +113,72 @@ func getIdentName(v interface{ Pos() token.Pos }) []string {
 	return []string{ident.Name}
 }
 
-func (w *walker) walkValue(depth int, v ssa.Value) ([]string, bool) {
-	if w.contains(v.Name()) {
-		return nil, false
-	}
-	w.push(v.Name())
-	defer w.pop()
+type poser interface {
+	Pos() token.Pos
+}
 
-	printIndent(depth)
-	fmt.Printf("%[1]v\t%[1]T\n", v)
+type posReferrerer interface {
+	poser
+	Referrers() *[]ssa.Instruction
+}
+
+type posOperander interface {
+	poser
+	Operander
+}
+
+func (w *walker) walkRefs(depth int, v posReferrerer) ([]string, bool) {
 	org := v
-	switch v := v.(type) {
-	case *ssa.Function:
-	case *ssa.Const:
-	case *ssa.Slice:
-		for _, v := range GetOperands(v) {
-			if r, ok := w.walkValue(depth+1, v); ok {
-				return append(r, getIdentName(org)...), true
-			}
-		}
-	case *ssa.Alloc:
-		for _, v := range *v.Referrers() {
-			if r, ok := w.walkInstructions(depth+1, v); ok {
-				return append(r, getIdentName(org)...), true
-			}
-		}
-	case *ssa.IndexAddr:
-		if r, ok := w.walkValue(depth+1, v.X); ok {
+	for _, v := range *v.Referrers() {
+		if r, ok := w.walk(depth, v); ok {
 			return append(r, getIdentName(org)...), true
 		}
+	}
+	return nil, false
+}
 
-		//for _, v := range *v.Referrers() {
-		//	if r, ok := w.walkInstructions(depth+1, v); ok {
-		//		return append(r, getIdentName(org)...), true
-		//	}
-		//}
+func (w *walker) walkOperands(depth int, v posOperander) ([]string, bool) {
+	org := v
+	for _, v := range GetOperands(v) {
+		if r, ok := w.walk(depth, v); ok {
+			return append(r, getIdentName(org)...), true
+		}
+	}
+	return nil, false
+}
+func (w *walker) walk(depth int, v poser) ([]string, bool) {
+	printIndent(depth)
+	fmt.Printf("%[1]v\t%[1]T\n", v)
+
+	if w.contains(v) {
+		return nil, false
+	}
+	w.push(v)
+	defer w.pop()
+
+	org := v
+	switch v := v.(type) {
+	case *ssa.Const:
+	case *ssa.Slice:
+		return w.walkOperands(depth+1, v)
+	case *ssa.Alloc:
+		return w.walkRefs(depth+1, v)
+	case *ssa.IndexAddr:
+		return w.walkRefs(depth+1, v)
+	case *ssa.Store:
+		return w.walkOperands(depth+1, v)
 	case *ssa.ChangeInterface:
-		for _, v := range GetOperands(v) {
-			if r, ok := w.walkValue(depth+1, v); ok {
-				return append(r, getIdentName(org)...), true
-			}
-		}
+		return w.walkOperands(depth+1, v)
 	case *ssa.Call:
-		for _, v := range GetOperands(v) {
-			if r, ok := w.walkValue(depth+1, v); ok {
-				return append(r, getIdentName(org)...), true
-			}
-		}
+		return w.walkOperands(depth+1, v)
 	case *ssa.UnOp:
-		if r, ok := w.walkValue(depth+1, v.X); ok {
+		if r, ok := w.walk(depth+1, v.X); ok {
 			return append(r, getIdentName(org)...), true
 		}
 		return getIdentName(v), true
 	case *ssa.Parameter:
 		return getIdentName(v), true
-	}
-	return nil, false
-}
-
-func (w *walker) walkInstructions(depth int, v ssa.Instruction) ([]string, bool) {
-	printIndent(depth)
-	fmt.Printf("%[1]v\t%[1]T\n", v)
-	org := v
-	switch v := v.(type) {
-	case *ssa.Slice:
-		for _, v := range GetOperands(v) {
-			if r, ok := w.walkValue(depth+1, v); ok {
-				return append(r, getIdentName(org)...), true
-			}
-		}
-	case *ssa.Alloc:
-		for _, v := range *v.Referrers() {
-			if r, ok := w.walkInstructions(depth+1, v); ok {
-				return append(r, getIdentName(org)...), true
-			}
-		}
-	case *ssa.IndexAddr:
-		if r, ok := w.walkValue(depth+1, v.X); ok {
-			return append(r, getIdentName(org)...), true
-		}
-
-		//for _, v := range *v.Referrers() {
-		//	if r, ok := w.walkInstructions(depth+1, v); ok {
-		//		return append(r, getIdentName(org)...), true
-		//	}
-		//}
-	case *ssa.Store:
-		for _, v := range GetOperands(v) {
-			if r, ok := w.walkValue(depth+1, v); ok {
-				return append(r, getIdentName(org)...), true
-			}
-		}
-	case *ssa.ChangeInterface:
-		for _, v := range GetOperands(v) {
-			if r, ok := w.walkValue(depth+1, v); ok {
-				return append(r, getIdentName(org)...), true
-			}
-		}
-	case *ssa.Call:
-		for _, v := range GetOperands(v) {
-			if r, ok := w.walkValue(depth+1, v); ok {
-				return append(r, getIdentName(org)...), true
-			}
-		}
-	case *ssa.UnOp:
-		if r, ok := w.walkValue(depth+1, v.X); ok {
-			return append(r, getIdentName(org)...), true
-		}
+	case *ssa.Function:
 		return getIdentName(v), true
 	}
 	return nil, false
@@ -230,30 +193,105 @@ func buildPosMap() {
 	})
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
-	builtssa = pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
-	inspected = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	buildPosMap()
+func isErrorf(call *ssa.Call) bool {
+	return call.Common().StaticCallee().Name() == "Errorf"
+}
+
+func iterateErrorf() []*ssa.Call {
+	var r []*ssa.Call
 	for _, f := range builtssa.SrcFuncs {
-		fmt.Printf("%[1]s\t%[2]T\t%[2]v\n", f.Name(), f)
 		for _, b := range f.Blocks {
-			fmt.Printf("\t%[1]s\t%[2]T\t%[2]v\n", b.Comment, b)
 			for _, instr := range b.Instrs {
 				switch v := instr.(type) {
 				case *ssa.Call:
-
-					if f := v.Common().StaticCallee(); f == nil || f.Name() == "Errorf" {
-						continue
-					}
-
-					w := new(walker)
-					if r, ok := w.walkInstructions(2, v); ok {
-						fmt.Println(strings.Join(r, "."))
-						break
+					if isErrorf(v) {
+						r = append(r, v)
 					}
 				}
 			}
 		}
+	}
+	return r
+}
+
+func getCallExpr(call *ssa.Call) *ast.CallExpr {
+	for node := posMap[call.Pos()]; node != nil; node = posMap[node.End()+1] {
+		if node, ok := node.(*ast.CallExpr); ok {
+			return node
+		}
+	}
+	return nil
+}
+
+func replaceConst(expr *ast.CallExpr, actual, want string) *ast.CallExpr {
+	for i, arg := range expr.Args {
+		c, ok := arg.(*ast.BasicLit)
+		if !ok {
+			continue
+		}
+		if c.Kind != token.STRING {
+			continue
+		}
+		if strconv.Quote(actual) == c.Value && strconv.CanBackquote(actual) && c.Value == "`"+actual+"`" {
+			continue
+		}
+		expr.Args[i] = &ast.BasicLit{
+			ValuePos: c.ValuePos,
+			Kind:     c.Kind,
+			Value:    strconv.Quote(want),
+		}
+		return expr
+	}
+	return expr
+}
+
+func genText(expr *ast.CallExpr) []byte {
+	buf := new(bytes.Buffer)
+	_ = format.Node(buf, token.NewFileSet(), expr)
+	return buf.Bytes()
+}
+
+func report(pass *analysis.Pass, call *ssa.Call) {
+	var actual, want string
+	var gotActual, gotWant bool
+	for _, v := range GetOperands(call) {
+		fmt.Printf("%[1]v\t%[1]T\n", v)
+		switch v := v.(type) {
+		case *ssa.Const:
+			if !gotActual {
+				actual = constant.StringVal(v.Value)
+				gotActual = true
+			}
+		case *ssa.Slice:
+			w := new(walker)
+			if r, ok := w.walk(0, v); ok {
+				want = strings.Join(r, ".") + ": %w"
+				gotWant = true
+			}
+		}
+	}
+	if gotWant && actual != want {
+		node := getCallExpr(call)
+		pos, end := node.Pos(), node.End()
+		pass.Report(analysis.Diagnostic{
+			Pos:     pos,
+			End:     end,
+			Message: fmt.Sprintf("want `the error-wrapping message should be %q", want),
+			SuggestedFixes: []analysis.SuggestedFix{{TextEdits: []analysis.TextEdit{{
+				Pos:     pos,
+				End:     end,
+				NewText: genText(replaceConst(node, actual, want)),
+			}}}},
+		})
+	}
+}
+
+func run(pass *analysis.Pass) (interface{}, error) {
+	builtssa = pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
+	inspected = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	buildPosMap()
+	for _, call := range iterateErrorf() {
+		report(pass, call)
 	}
 	return nil, nil
 }
