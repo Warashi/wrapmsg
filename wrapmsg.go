@@ -179,7 +179,11 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	case *ssa.Parameter:
 		return getIdentName(v), true
 	case *ssa.Function:
-		return getIdentName(v), true
+		r := getIdentName(v)
+		if pkg := v.Object().Pkg(); pkg != builtssa.Pkg.Pkg {
+			r = append([]string{pkg.Name()}, r...)
+		}
+		return r, true
 	}
 	return nil, false
 }
