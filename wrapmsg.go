@@ -8,6 +8,7 @@ import (
 	"go/format"
 	"go/token"
 	"go/types"
+	"log"
 	"strconv"
 	"strings"
 
@@ -17,6 +18,10 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/ssa"
 )
+
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+}
 
 const doc = "wrapmsg is ..."
 
@@ -39,7 +44,7 @@ var (
 
 func printIndent(depth int) {
 	for i := 0; i < depth; i++ {
-		fmt.Print("\t")
+		log.Print("\t")
 	}
 }
 
@@ -69,63 +74,69 @@ func getIdentName(v poser) []string {
 	switch v := v.(type) {
 	case *ssa.Slice:
 		if ok {
-			fmt.Println("Slice:", ident.Name)
+			log.Println("Slice:", ident.Name)
 		}
 		return nil
 	case *ssa.Alloc:
 		if ok {
-			fmt.Println("Alloc:", ident.Name)
+			log.Println("Alloc:", ident.Name)
 		}
-		return nil
+		switch v.Comment {
+		case "varargs":
+			return nil
+		default:
+			log.Println("Alloc.Comment:", v.Comment)
+		}
+		break
 	case *ssa.IndexAddr:
 		if ok {
-			fmt.Println("IndexAddr:", ident.Name)
+			log.Println("IndexAddr:", ident.Name)
 		}
 		break
 	case *ssa.FieldAddr:
 		if ok {
-			fmt.Println("FieldAddr:", ident.Name)
+			log.Println("FieldAddr:", ident.Name)
 		}
 		return nil
 	case *ssa.Store:
 		if ok {
-			fmt.Println("Store:", ident.Name)
+			log.Println("Store:", ident.Name)
 		}
 		return nil
 	case *ssa.ChangeInterface:
 		if ok {
-			fmt.Println("ChangeInterface:", ident.Name)
+			log.Println("ChangeInterface:", ident.Name)
 		}
 		return nil
 	case *ssa.Call:
 		if ok {
-			fmt.Println("Call:", ident.Name)
+			log.Println("Call:", ident.Name)
 		}
 		break
 	case *ssa.UnOp:
 		if ok {
-			fmt.Println("UnOp:", ident.Name)
+			log.Println("UnOp:", ident.Name)
 		}
 		break
 	case *ssa.Parameter:
-		fmt.Println("Parameter:", v.Object().Name())
+		log.Println("Parameter:", v.Object().Name())
 		return []string{v.Object().Name()}
 	case *ssa.Function:
-		fmt.Println("Function:", v.Object().Name())
+		log.Println("Function:", v.Object().Name())
 		break
 	case *ast.Ident:
-		fmt.Println("ast.Ident", v.Name)
+		log.Println("ast.Ident", v.Name)
 		return []string{v.Name}
 	case *ast.SelectorExpr:
-		fmt.Printf("ast.SelectorExpr(X: %v, Sel: %v)\n", v.X, v.Sel)
+		log.Printf("ast.SelectorExpr(X: %v, Sel: %v)\n", v.X, v.Sel)
 		return nil
 	case *ast.CallExpr:
 		if ok {
-			fmt.Println("ast.CallExpr:", ident.Name)
+			log.Println("ast.CallExpr:", ident.Name)
 		}
 		return nil
 	default:
-		fmt.Printf("Default(%[1]T)[%[2]v]: %[1]v\n", v, ok)
+		log.Printf("Default(%[1]T)[%[2]v]: %[1]v\n", v, ok)
 		return nil
 	}
 
@@ -187,7 +198,7 @@ func getCallPackageName(call *ssa.Call) []string {
 
 func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	printIndent(depth)
-	fmt.Printf("%[1]v\t%[1]T\t%[2]v\n", v, getIdentName(v))
+	log.Printf("%[1]v\t%[1]T\t%[2]v\n", v, getIdentName(v))
 
 	if w.contains(v) {
 		return nil, false
@@ -200,7 +211,11 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	case *ssa.Slice:
 		return w.walkOperands(depth+1, v)
 	case *ssa.Alloc:
-		return w.walkRefs(depth+1, v)
+		var ret = getIdentName(v)
+		if r, ok := w.walkRefs(depth+1, v); ok {
+			ret = append(ret, r...)
+		}
+		return ret, true
 	case *ssa.FieldAddr:
 		return w.walkOperands(depth+1, v)
 	case *ssa.IndexAddr:
@@ -218,7 +233,7 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 			case *ast.SelectorExpr:
 				ret = append(ret, getIdentName(v.X)...)
 			default:
-				fmt.Printf("Default(%[1]T): %[1]v\n", v)
+				log.Printf("Default(%[1]T): %[1]v\n", v)
 			}
 		case v.Common().Signature().Recv() != nil:
 			// interfaceではないメソッド呼び出し
@@ -330,7 +345,7 @@ func report(pass *analysis.Pass, call *ssa.Call) {
 	var actual, want string
 	var gotActual, gotWant bool
 	for _, v := range GetOperands(call) {
-		fmt.Printf("%[1]v\t%[1]T\n", v)
+		log.Printf("%[1]v\t%[1]T\n", v)
 		switch v := v.(type) {
 		case *ssa.Const:
 			if !gotActual {
@@ -339,7 +354,7 @@ func report(pass *analysis.Pass, call *ssa.Call) {
 			}
 		case *ssa.Slice:
 			w := new(walker)
-			if r, ok := w.walk(0, v); ok {
+			if r, ok := w.walk(0, v); ok && len(r) > 0 {
 				want = strings.Join(r, ".") + ": %w"
 				gotWant = true
 			}

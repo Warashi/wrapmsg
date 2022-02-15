@@ -9,6 +9,12 @@ import (
 )
 
 func f() error {
+	// non-error
+	_ = fmt.Errorf("new error")
+	_ = fmt.Errorf("new error with format: %d", 10)
+	var msg string
+	_ = fmt.Errorf(msg)
+
 	// call method of field
 	tt := tt{}
 	if err := tt.t.Err(); err != nil {
@@ -23,12 +29,6 @@ func f() error {
 	if err := tt.ct.Err(context.Background()); err != nil {
 		return fmt.Errorf("tt.ct.Err: %w", err)
 	}
-
-	// non-error
-	_ = fmt.Errorf("new error")
-	_ = fmt.Errorf("new error with format: %d", 10)
-	var msg string
-	_ = fmt.Errorf(msg)
 
 	// call same package
 	if err := g(); err != nil {
