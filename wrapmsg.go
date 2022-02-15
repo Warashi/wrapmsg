@@ -169,25 +169,17 @@ func getCallPackage(call *ssa.Call) *types.Package {
 	return call.Common().StaticCallee().Package().Pkg
 }
 
-func getCallPackageName(p poser) []string {
-	for i := posMap[p.Pos()].Pos() - 1; ; i-- {
-		// 頑張って遡って実際の記述を見る
-		// 安易に pkg.Name() を使うと import alias に対応できない……
-		node, ok := posMap[i]
-		if !ok {
-			continue
-		}
-		ident, ok := node.(*ast.Ident)
-		if !ok {
-			continue
-		}
-		return []string{ident.Name}
+func getCallPackageName(call *ssa.Call) []string {
+	switch v := posMap[getCallExpr(call).Pos()].(type) {
+	case *ast.Ident:
+		return []string{v.Name}
 	}
+	return nil
 }
 
 func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	printIndent(depth)
-	fmt.Printf("%[1]v\t%[1]T\n", v)
+	fmt.Printf("%[1]v\t%[1]T\t%[2]v\n", v, getIdentName(v))
 
 	if w.contains(v) {
 		return nil, false
