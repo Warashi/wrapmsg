@@ -9,6 +9,9 @@ func f() error {
 	if err := g(); err != nil {
 		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "g: %w"`
 	}
+	if err := g(); err != nil {
+		return fmt.Errorf("g: %w", err)
+	}
 	return nil
 }
 
