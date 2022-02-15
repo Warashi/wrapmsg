@@ -1,10 +1,18 @@
 package a
 
 import (
+	"context"
 	"fmt"
 )
 
 func f() error {
+	if err := ctx(context.Background()); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "ctx: %w"`
+	}
+	if err := ctx(context.Background()); err != nil {
+		return fmt.Errorf("ctx: %w", err)
+	}
+
 	// non-error
 	_ = fmt.Errorf("new error")
 	_ = fmt.Errorf("new error with format: %d", 10)
@@ -22,5 +30,8 @@ func f() error {
 }
 
 func g() error {
+	return nil
+}
+func ctx(context.Context) error {
 	return nil
 }
