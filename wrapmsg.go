@@ -176,7 +176,7 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	case *ssa.ChangeInterface:
 		return w.walkOperands(depth+1, v)
 	case *ssa.Call:
-		if v.Common().Signature().Recv() != nil {
+		if v.Common().Signature().Recv() != nil && len(v.Common().Args) > 0 {
 			if r, ok := w.walk(depth, v.Common().Args[0]); ok {
 				return append(r, getIdentName(org)...), true
 			}
@@ -206,7 +206,13 @@ func buildPosMap() {
 }
 
 func isErrorf(call *ssa.Call) bool {
-	return call.Common().StaticCallee().Name() == "Errorf"
+	if f := call.Common().Method; f != nil {
+		return f.Name() == "Errorf"
+	}
+	if f := call.Common().StaticCallee(); f != nil {
+		return f.Name() == "Errorf"
+	}
+	return false
 }
 
 func iterateErrorf() []*ssa.Call {
