@@ -40,7 +40,7 @@ var Analyzer = &analysis.Analyzer{
 var (
 	builtssa  *buildssa.SSA
 	inspected *inspector.Inspector
-	posMap    map[token.Pos]ast.Node
+	posMap    map[token.Pos][]ast.Node
 )
 
 func printIndent(depth int) {
@@ -70,8 +70,19 @@ func (w *walker) contains(n interface{}) bool {
 	return false
 }
 
+func getIdent(v poser) *ast.Ident {
+	for _, node := range posMap[v.Pos()] {
+		ident, ok := node.(*ast.Ident)
+		if ok {
+			return ident
+		}
+	}
+	return nil
+}
+
 func getIdentName(v poser) []string {
-	ident, ok := posMap[v.Pos()].(*ast.Ident)
+	ident := getIdent(v)
+	ok := ident != nil
 	switch v := v.(type) {
 	case *ssa.Slice:
 		if ok {
@@ -190,9 +201,9 @@ func getCallPackage(call *ssa.Call) *types.Package {
 }
 
 func getCallPackageName(call *ssa.Call) []string {
-	switch v := posMap[getCallExpr(call).Pos()].(type) {
-	case *ast.Ident:
-		return []string{v.Name}
+	ident := getIdent(getCallExpr(call))
+	if ident != nil {
+		return []string{ident.Name}
 	}
 	return nil
 }
@@ -272,11 +283,12 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 }
 
 func buildPosMap() {
-	posMap = make(map[token.Pos]ast.Node)
-	inspected.Preorder(nil, func(node ast.Node) {
+	posMap = make(map[token.Pos][]ast.Node)
+	inspected.WithStack(nil, func(node ast.Node, push bool, stack []ast.Node) bool {
 		for i := node.Pos(); i <= node.End(); i++ {
-			posMap[i] = node
+			posMap[i] = stack
 		}
+		return true
 	})
 }
 
@@ -308,9 +320,10 @@ func iterateErrorf() []*ssa.Call {
 }
 
 func getCallExpr(call *ssa.Call) *ast.CallExpr {
-	for node := posMap[call.Pos()]; node != nil; node = posMap[node.End()+1] {
-		if node, ok := node.(*ast.CallExpr); ok {
-			return node
+	for _, node := range posMap[call.Pos()] {
+		ident, ok := node.(*ast.CallExpr)
+		if ok {
+			return ident
 		}
 	}
 	return nil
