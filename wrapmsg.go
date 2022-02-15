@@ -7,6 +7,7 @@ import (
 	"go/constant"
 	"go/format"
 	"go/token"
+	"go/types"
 	"strconv"
 	"strings"
 
@@ -79,6 +80,11 @@ func getIdentName(v poser) []string {
 	case *ssa.IndexAddr:
 		if ok {
 			fmt.Println("IndexAddr:", ident.Name)
+		}
+		break
+	case *ssa.FieldAddr:
+		if ok {
+			fmt.Println("FieldAddr:", ident.Name)
 		}
 		return nil
 	case *ssa.Store:
@@ -155,6 +161,30 @@ func (w *walker) walkOperands(depth int, v posOperander) ([]string, bool) {
 	}
 	return nil, false
 }
+
+func getCallPackage(call *ssa.Call) *types.Package {
+	if f := call.Common().Method; f != nil {
+		return f.Pkg()
+	}
+	return call.Common().StaticCallee().Package().Pkg
+}
+
+func getCallPackageName(p poser) []string {
+	for i := posMap[p.Pos()].Pos() - 1; ; i-- {
+		// 頑張って遡って実際の記述を見る
+		// 安易に pkg.Name() を使うと import alias に対応できない……
+		node, ok := posMap[i]
+		if !ok {
+			continue
+		}
+		ident, ok := node.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		return []string{ident.Name}
+	}
+}
+
 func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	printIndent(depth)
 	fmt.Printf("%[1]v\t%[1]T\n", v)
@@ -181,25 +211,26 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 		return w.walkOperands(depth+1, v)
 	case *ssa.Call:
 		var ret []string
-		if !v.Common().IsInvoke() && v.Common().Signature().Recv() != nil {
+		switch {
+		case !v.Common().IsInvoke() && v.Common().Signature().Recv() != nil:
 			// interfaceではないメソッド呼び出し
 			if r, ok := w.walk(depth, v.Common().Args[0]); ok {
 				ret = append(ret, r...)
 			}
-		}
-		if v.Common().IsInvoke() {
+		case v.Common().IsInvoke():
 			// interfaceからのメソッド呼び出し
 			switch v := getCallExpr(v).Fun.(type) {
 			case *ast.SelectorExpr:
 				ret = append(ret, getIdentName(v.X)...)
 			}
+		case getCallPackage(v) != builtssa.Pkg.Pkg:
+			// 別パッケージを呼んでる
+			ret = append(ret, getCallPackageName(v)...)
 		}
 		if r, ok := w.walkOperands(depth+1, v); ok {
 			ret = append(ret, r...)
 		}
-		if len(ret) > 0 {
-			return ret, true
-		}
+		return ret, true
 	case *ssa.UnOp:
 		var ret []string
 		for _, v := range GetOperands(v) {
@@ -217,9 +248,6 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 		return getIdentName(v), true
 	case *ssa.Function:
 		r := getIdentName(v)
-		if pkg := v.Object().Pkg(); pkg != builtssa.Pkg.Pkg {
-			r = append([]string{pkg.Name()}, r...)
-		}
 		return r, true
 	}
 	return nil, false
