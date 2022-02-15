@@ -108,7 +108,7 @@ func getIdentName(v poser) []string {
 		fmt.Println("Function:", v.Object().Name())
 		break
 	default:
-		fmt.Printf("Default(%[1]T): %[1]v\n", v)
+		fmt.Printf("Default(%[1]T)[%[2]v]: %[1]v\n", v, ok)
 		return nil
 	}
 
