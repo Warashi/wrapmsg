@@ -9,6 +9,17 @@ import (
 )
 
 func f() error {
+	r := r{}
+	rr := r.r(context.Background())
+	for _, t := range rr {
+		if err := t.Err(context.Background()); err != nil {
+			return fmt.Errorf("t.Err: %w", err) // want `the error-wrapping message should be "t.Err: %w"`
+		}
+		if err := t.Err(context.Background()); err != nil {
+			return fmt.Errorf("t.Err: %w", err)
+		}
+	}
+
 	// non-error
 	_ = fmt.Errorf("new error")
 	_ = fmt.Errorf("new error with format: %d", 10)
