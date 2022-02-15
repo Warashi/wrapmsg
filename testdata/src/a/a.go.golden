@@ -8,6 +8,14 @@ import (
 )
 
 func f() error {
+	// multi method chain same package
+	if err := T().U().Err(); err != nil {
+		return fmt.Errorf("T.U.Err: %w", err) // want `the error-wrapping message should be "T\.U\.Err: %w"`
+	}
+	if err := T().U().Err(); err != nil {
+		return fmt.Errorf("T.U.Err: %w", err)
+	}
+
 	// method chain same package
 	if err := T().Err(); err != nil {
 		return fmt.Errorf("T.Err: %w", err) // want `the error-wrapping message should be "T\.Err: %w"`
