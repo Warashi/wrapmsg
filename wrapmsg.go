@@ -107,6 +107,9 @@ func getIdentName(v poser) []string {
 	case *ssa.Function:
 		fmt.Println("Function:", v.Object().Name())
 		break
+	case *ast.Ident:
+		fmt.Println("ast.Ident", v.Name)
+		return []string{v.Name}
 	default:
 		fmt.Printf("Default(%[1]T)[%[2]v]: %[1]v\n", v, ok)
 		return nil
@@ -162,7 +165,6 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	w.push(v)
 	defer w.pop()
 
-	org := v
 	switch v := v.(type) {
 	case *ssa.Const:
 	case *ssa.Slice:
@@ -176,12 +178,26 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	case *ssa.ChangeInterface:
 		return w.walkOperands(depth+1, v)
 	case *ssa.Call:
-		if v.Common().Signature().Recv() != nil && len(v.Common().Args) > 0 {
+		var ret []string
+		if !v.Common().IsInvoke() && v.Common().Signature().Recv() != nil {
+			// interfaceではないメソッド呼び出し
 			if r, ok := w.walk(depth, v.Common().Args[0]); ok {
-				return append(r, getIdentName(org)...), true
+				ret = append(ret, r...)
 			}
 		}
-		return w.walkOperands(depth+1, v)
+		if v.Common().IsInvoke() {
+			// interfaceからのメソッド呼び出し
+			switch v := getCallExpr(v).Fun.(type) {
+			case *ast.SelectorExpr:
+				ret = append(ret, getIdentName(v.X)...)
+			}
+		}
+		if r, ok := w.walkOperands(depth+1, v); ok {
+			ret = append(ret, r...)
+		}
+		if len(ret) > 0 {
+			return ret, true
+		}
 	case *ssa.UnOp:
 		return getIdentName(v), true
 	case *ssa.Parameter:
