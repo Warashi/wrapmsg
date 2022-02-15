@@ -7,6 +7,18 @@ import (
 	"a/b"
 )
 
+func (mm mmu) Err(ctx context.Context) error {
+	for _, m := range mm {
+		if err := m.Err(ctx); err != nil {
+			return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "m.Err: %w"`
+		}
+		if err := m.Err(ctx); err != nil {
+			return fmt.Errorf("m.Err: %w", err)
+		}
+	}
+	return nil
+}
+
 func f() error {
 	// multi method chain same package
 	if err := T().U().Err(); err != nil {
@@ -82,3 +94,8 @@ func (t) Err() error {
 func (t) U() t {
 	return t{}
 }
+
+type ict interface {
+	Err(context.Context) error
+}
+type mmu []ict
