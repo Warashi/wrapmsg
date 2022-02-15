@@ -21,6 +21,7 @@ import (
 
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	fmt.Println("----------Start----------")
 }
 
 const doc = "wrapmsg is ..."
@@ -44,7 +45,7 @@ var (
 
 func printIndent(depth int) {
 	for i := 0; i < depth; i++ {
-		log.Print("\t")
+		fmt.Print("\t")
 	}
 }
 
