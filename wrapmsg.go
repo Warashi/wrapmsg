@@ -1,12 +1,10 @@
 package wrapmsg
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
 	"go/constant"
-	"go/format"
 	"go/token"
 	"strconv"
 	"strings"
@@ -31,27 +29,6 @@ var Analyzer = &analysis.Analyzer{
 	},
 }
 
-type walker struct {
-	stack []interface{}
-}
-
-func (w *walker) push(n interface{}) {
-	w.stack = append(w.stack, n)
-}
-
-func (w *walker) pop() {
-	w.stack = w.stack[:len(w.stack)-1]
-}
-
-func (w *walker) contains(n interface{}) bool {
-	for _, s := range w.stack {
-		if s == n {
-			return true
-		}
-	}
-	return false
-}
-
 type poser interface {
 	Pos() token.Pos
 }
@@ -64,59 +41,6 @@ type posReferrerer interface {
 type posOperander interface {
 	poser
 	operander
-}
-
-func (w *walker) walkRefs(ctx context.Context, depth int, v posReferrerer) ([]string, bool) {
-	for _, v := range *v.Referrers() {
-		if r, ok := w.walk(ctx, depth, v); ok {
-			return r, true
-		}
-	}
-	return nil, false
-}
-
-func (w *walker) walkOperands(ctx context.Context, depth int, v posOperander) ([]string, bool) {
-	for _, v := range getOperands(v) {
-		if r, ok := w.walk(ctx, depth, v); ok {
-			return r, true
-		}
-	}
-	return nil, false
-}
-
-func prettyPrint(ctx context.Context, expr ast.Expr) string {
-	pass := getPass(ctx)
-	var b bytes.Buffer
-	format.Node(&b, pass.Fset, expr)
-	return b.String()
-}
-
-func (w *walker) walk(ctx context.Context, depth int, v poser) ([]string, bool) {
-	if w.contains(v) {
-		return nil, false
-	}
-	w.push(v)
-	defer w.pop()
-
-	switch v := v.(type) {
-	case *ssa.Const:
-	case *ssa.Slice:
-		return w.walkOperands(ctx, depth+1, v)
-	case *ssa.Alloc:
-		return w.walkRefs(ctx, depth+1, v)
-	case *ssa.IndexAddr:
-		return w.walkRefs(ctx, depth+1, v)
-	case *ssa.Store:
-		return w.walkOperands(ctx, depth+1, v)
-	case *ssa.ChangeInterface:
-		return w.walkOperands(ctx, depth+1, v)
-	case *ssa.Call:
-		call, ok := getCallExpr(ctx, v)
-		if ok {
-			return formatCallExpr(call), true
-		}
-	}
-	return nil, false
 }
 
 func isErrorf(call *ssa.Call) bool {
@@ -148,67 +72,6 @@ func iterateErrorf(ctx context.Context) []*ssa.Call {
 		}
 	}
 	return r
-}
-
-func formatIndexExpr(expr *ast.IndexExpr) []string {
-	var ret []string
-	switch x := expr.X.(type) {
-	case *ast.SelectorExpr:
-		ret = append(formatSelectorExpr(x), ret...)
-	default:
-	}
-
-	switch x := expr.Index.(type) {
-	case *ast.Ident:
-		ret[len(ret)-1] = fmt.Sprintf("%s[%s]", ret[len(ret)-1], x.Name)
-	case *ast.BasicLit:
-		ret[len(ret)-1] = fmt.Sprintf("%s[%s]", ret[len(ret)-1], x.Value)
-	}
-	return ret
-}
-
-func formatSelectorExpr(sel *ast.SelectorExpr) []string {
-	var ret []string
-	switch x := sel.X.(type) {
-	case *ast.CallExpr:
-		ret = append(formatCallExpr(x), ret...)
-	case *ast.Ident:
-		ret = append(ret, x.Name)
-	case *ast.SelectorExpr:
-		ret = append(formatSelectorExpr(x), ret...)
-	case *ast.IndexExpr:
-		ret = append(formatIndexExpr(x), ret...)
-	}
-	ret = append(ret, sel.Sel.Name)
-	return ret
-}
-
-func formatCallExpr(call *ast.CallExpr) []string {
-	switch f := call.Fun.(type) {
-	case *ast.SelectorExpr:
-		return formatSelectorExpr(f)
-	case *ast.Ident:
-		return []string{f.Name}
-	}
-	return nil
-}
-
-func getCallExpr(ctx context.Context, call poser) (*ast.CallExpr, bool) {
-	posMap := getPosMap(ctx)
-	for i := call.Pos(); i > 0; i-- {
-		stack := posMap[i]
-		if len(stack) == 0 {
-			break
-		}
-		for j := range stack {
-			node := stack[len(stack)-1-j]
-			ident, ok := node.(*ast.CallExpr)
-			if ok {
-				return ident, true
-			}
-		}
-	}
-	return nil, false
 }
 
 func replaceConst(expr *ast.CallExpr, actual, want string) *ast.CallExpr {
