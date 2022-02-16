@@ -351,6 +351,9 @@ func report(pass *analysis.Pass, call *ssa.Call) {
 		log.Printf("%[1]v\t%[1]T\n", v)
 		switch v := v.(type) {
 		case *ssa.Const:
+			if v.Value == nil || v.Value.Kind() != constant.String {
+				continue
+			}
 			if !gotActual {
 				actual = constant.StringVal(v.Value)
 				gotActual = true
