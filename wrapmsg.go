@@ -118,7 +118,7 @@ type posReferrerer interface {
 
 type posOperander interface {
 	poser
-	Operander
+	operander
 }
 
 func (w *walker) walkRefs(ctx context.Context, depth int, v posReferrerer) ([]string, bool) {
@@ -133,7 +133,7 @@ func (w *walker) walkRefs(ctx context.Context, depth int, v posReferrerer) ([]st
 
 func (w *walker) walkOperands(ctx context.Context, depth int, v posOperander) ([]string, bool) {
 	org := v
-	for _, v := range GetOperands(v) {
+	for _, v := range getOperands(v) {
 		if r, ok := w.walk(ctx, depth, v); ok {
 			return append(r, getIdentName(ctx, org)...), true
 		}
@@ -177,7 +177,7 @@ func (w *walker) walk(ctx context.Context, depth int, v poser) ([]string, bool) 
 }
 
 func isErrorf(call *ssa.Call) bool {
-	if f, ok := GetOperands(call)[0].(*ssa.Function); ok && f.Pkg.Pkg.Path() == "testing" {
+	if f, ok := getOperands(call)[0].(*ssa.Function); ok && f.Pkg.Pkg.Path() == "testing" {
 		// avoid targeting (*testing.T).Errorf
 		return false
 	}
@@ -302,7 +302,7 @@ func report(ctx context.Context, call *ssa.Call) {
 	pass := getPass(ctx)
 	var actual, want string
 	var gotActual, gotWant bool
-	for _, v := range GetOperands(call) {
+	for _, v := range getOperands(call) {
 		switch v := v.(type) {
 		case *ssa.Const:
 			if v.Value == nil || v.Value.Kind() != constant.String {
