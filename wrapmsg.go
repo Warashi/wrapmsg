@@ -219,6 +219,23 @@ func iterateErrorf(ctx context.Context) []*ssa.Call {
 	return r
 }
 
+func formatIndexExpr(expr *ast.IndexExpr) []string {
+	var ret []string
+	switch x := expr.X.(type) {
+	case *ast.SelectorExpr:
+		ret = append(formatSelectorExpr(x), ret...)
+	default:
+	}
+
+	switch x := expr.Index.(type) {
+	case *ast.Ident:
+		ret[len(ret)-1] = fmt.Sprintf("%s[%s]", ret[len(ret)-1], x.Name)
+	case *ast.BasicLit:
+		ret[len(ret)-1] = fmt.Sprintf("%s[%s]", ret[len(ret)-1], x.Value)
+	}
+	return ret
+}
+
 func formatSelectorExpr(sel *ast.SelectorExpr) []string {
 	var ret []string
 	switch x := sel.X.(type) {
@@ -228,6 +245,8 @@ func formatSelectorExpr(sel *ast.SelectorExpr) []string {
 		ret = append(ret, x.Name)
 	case *ast.SelectorExpr:
 		ret = append(formatSelectorExpr(x), ret...)
+	case *ast.IndexExpr:
+		ret = append(formatIndexExpr(x), ret...)
 	}
 	ret = append(ret, sel.Sel.Name)
 	return ret
