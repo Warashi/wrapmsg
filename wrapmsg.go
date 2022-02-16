@@ -242,6 +242,9 @@ func buildPosMap() {
 }
 
 func isErrorf(call *ssa.Call) bool {
+	if f, ok := GetOperands(call)[0].(*ssa.Function); ok && f.Pkg.Pkg.Path() == "testing" {
+		return false
+	}
 	if f := call.Common().Method; f != nil {
 		return f.Name() == "Errorf"
 	}
