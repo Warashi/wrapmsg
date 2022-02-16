@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
-	"go/printer"
+	"go/format"
 	"go/token"
 	"strconv"
 	"strings"
 
+	"github.com/jinzhu/copier"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -141,10 +142,10 @@ func (w *walker) walkOperands(ctx context.Context, depth int, v posOperander) ([
 	return nil, false
 }
 
-func format(ctx context.Context, expr ast.Expr) string {
+func prettyPrint(ctx context.Context, expr ast.Expr) string {
 	pass := ctx.Value(passKey).(*analysis.Pass)
 	var b bytes.Buffer
-	printer.Fprint(&b, pass.Fset, expr)
+	format.Node(&b, pass.Fset, expr)
 	return b.String()
 }
 
@@ -262,7 +263,10 @@ func getCallExpr(ctx context.Context, call poser) (*ast.CallExpr, bool) {
 }
 
 func replaceConst(expr *ast.CallExpr, actual, want string) *ast.CallExpr {
-	for i, arg := range expr.Args {
+	ret := new(ast.CallExpr)
+	copier.CopyWithOption(&ret, &expr, copier.Option{IgnoreEmpty: false, DeepCopy: true})
+
+	for i, arg := range ret.Args {
 		c, ok := arg.(*ast.BasicLit)
 		if !ok {
 			continue
@@ -270,21 +274,21 @@ func replaceConst(expr *ast.CallExpr, actual, want string) *ast.CallExpr {
 		if c.Kind != token.STRING {
 			continue
 		}
-		if strconv.Quote(actual) == c.Value && strconv.CanBackquote(actual) && c.Value == "`"+actual+"`" {
-			continue
+		if strconv.Quote(actual) == c.Value || (strconv.CanBackquote(actual) && c.Value == "`"+actual+"`") {
+			ret.Args[i] = &ast.BasicLit{
+				ValuePos: c.ValuePos,
+				Kind:     c.Kind,
+				Value:    strconv.Quote(want),
+			}
+			return ret
 		}
-		expr.Args[i] = &ast.BasicLit{
-			ValuePos: c.ValuePos,
-			Kind:     c.Kind,
-			Value:    strconv.Quote(want),
-		}
-		return expr
 	}
-	return expr
+
+	return ret
 }
 
 func genText(ctx context.Context, expr *ast.CallExpr) []byte {
-	return []byte(format(ctx, expr))
+	return []byte(prettyPrint(ctx, expr))
 }
 
 func report(ctx context.Context, call *ssa.Call) {
@@ -313,7 +317,7 @@ func report(ctx context.Context, call *ssa.Call) {
 			}
 		}
 	}
-	if gotWant && actual != want {
+	if gotWant && gotActual && actual != want {
 		node, ok := getCallExpr(ctx, call)
 		if !ok {
 			return
