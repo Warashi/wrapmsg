@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jinzhu/copier"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -263,8 +262,9 @@ func getCallExpr(ctx context.Context, call poser) (*ast.CallExpr, bool) {
 }
 
 func replaceConst(expr *ast.CallExpr, actual, want string) *ast.CallExpr {
-	ret := new(ast.CallExpr)
-	copier.CopyWithOption(&ret, &expr, copier.Option{IgnoreEmpty: false, DeepCopy: true})
+	ret := *expr
+	ret.Args = make([]ast.Expr, len(expr.Args))
+	copy(ret.Args, expr.Args)
 
 	for i, arg := range ret.Args {
 		c, ok := arg.(*ast.BasicLit)
@@ -280,11 +280,11 @@ func replaceConst(expr *ast.CallExpr, actual, want string) *ast.CallExpr {
 				Kind:     c.Kind,
 				Value:    strconv.Quote(want),
 			}
-			return ret
+			return &ret
 		}
 	}
 
-	return ret
+	return &ret
 }
 
 func genText(ctx context.Context, expr *ast.CallExpr) []byte {

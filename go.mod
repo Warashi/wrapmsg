@@ -4,7 +4,6 @@ go 1.17
 
 require (
 	github.com/gostaticanalysis/testutil v0.4.0
-	github.com/jinzhu/copier v0.3.5
 	golang.org/x/tools v0.1.9
 )
 
