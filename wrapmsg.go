@@ -35,8 +35,24 @@ var (
 	pass      *analysis.Pass
 	builtssa  *buildssa.SSA
 	inspected *inspector.Inspector
-	posMap    map[token.Pos][]ast.Node
+	posMap    cMap
 )
+
+type cMap struct {
+  base sync.Map
+}
+
+func (m *cMap) Load(key token.Pos) []ast.Node {
+  r, _ := m.base.Load(key)
+  if r == nil {
+    return nil
+  }
+  return r.([]ast.Node)
+}
+
+func (m *cMap) Store(key token.Pos, value []ast.Node) {
+  m.base.Store(key, value)
+}
 
 type walker struct {
 	stack []interface{}
@@ -60,7 +76,7 @@ func (w *walker) contains(n interface{}) bool {
 }
 
 func getIdent(v poser) (*ast.Ident, bool) {
-	for _, node := range posMap[v.Pos()] {
+	for _, node := range posMap.Load(v.Pos()) {
 		ident, ok := node.(*ast.Ident)
 		if ok {
 			return ident, true
@@ -183,14 +199,13 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 
 func buildPosMap() {
 	var mu sync.Mutex
-	posMap = make(map[token.Pos][]ast.Node)
 	inspected.Preorder(nil, func(node ast.Node) {
 		mu.Lock()
 		defer mu.Unlock()
 		for i := node.Pos(); i <= node.End(); i++ {
-			stack := posMap[i]
+			stack := posMap.Load(i)
 			stack = append(stack, node)
-			posMap[i] = stack
+			posMap.Store(i, stack)
 		}
 	})
 }
@@ -252,7 +267,7 @@ func formatCallExpr(call *ast.CallExpr) []string {
 
 func getCallExpr(call poser) (*ast.CallExpr, bool) {
 	for i := call.Pos(); i > 0; i-- {
-		stack := posMap[i]
+		stack := posMap.Load(i)
 		if len(stack) == 0 {
 			break
 		}
