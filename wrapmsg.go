@@ -53,7 +53,7 @@ func (w *walker) contains(n interface{}) bool {
 }
 
 func getIdent(ctx context.Context, v poser) (*ast.Ident, bool) {
-	posMap := ctx.Value(posMapKey).(map[token.Pos][]ast.Node)
+	posMap := getPosMap(ctx)
 	for _, node := range posMap[v.Pos()] {
 		ident, ok := node.(*ast.Ident)
 		if ok {
@@ -142,7 +142,7 @@ func (w *walker) walkOperands(ctx context.Context, depth int, v posOperander) ([
 }
 
 func prettyPrint(ctx context.Context, expr ast.Expr) string {
-	pass := ctx.Value(passKey).(*analysis.Pass)
+	pass := getPass(ctx)
 	var b bytes.Buffer
 	format.Node(&b, pass.Fset, expr)
 	return b.String()
@@ -176,17 +176,6 @@ func (w *walker) walk(ctx context.Context, depth int, v poser) ([]string, bool) 
 	return nil, false
 }
 
-func buildPosMap(ctx context.Context) map[token.Pos][]ast.Node {
-	posMap := make(map[token.Pos][]ast.Node)
-	i := ctx.Value(inspectorKey).(*inspector.Inspector)
-	i.Preorder(nil, func(node ast.Node) {
-		for i := node.Pos(); i <= node.End(); i++ {
-			posMap[i] = append(posMap[i], node)
-		}
-	})
-	return posMap
-}
-
 func isErrorf(call *ssa.Call) bool {
 	if f, ok := GetOperands(call)[0].(*ssa.Function); ok && f.Pkg.Pkg.Path() == "testing" {
 		// avoid targeting (*testing.T).Errorf
@@ -203,8 +192,7 @@ func isErrorf(call *ssa.Call) bool {
 
 func iterateErrorf(ctx context.Context) []*ssa.Call {
 	var r []*ssa.Call
-	s := ctx.Value(ssaKey).(*buildssa.SSA)
-	for _, f := range s.SrcFuncs {
+	for _, f := range getSSA(ctx).SrcFuncs {
 		for _, b := range f.Blocks {
 			for _, instr := range b.Instrs {
 				switch v := instr.(type) {
@@ -263,7 +251,7 @@ func formatCallExpr(call *ast.CallExpr) []string {
 }
 
 func getCallExpr(ctx context.Context, call poser) (*ast.CallExpr, bool) {
-	posMap := ctx.Value(posMapKey).(map[token.Pos][]ast.Node)
+	posMap := getPosMap(ctx)
 	for i := call.Pos(); i > 0; i-- {
 		stack := posMap[i]
 		if len(stack) == 0 {
@@ -311,7 +299,7 @@ func genText(ctx context.Context, expr *ast.CallExpr) []byte {
 }
 
 func report(ctx context.Context, call *ssa.Call) {
-	pass := ctx.Value(passKey).(*analysis.Pass)
+	pass := getPass(ctx)
 	var actual, want string
 	var gotActual, gotWant bool
 	for _, v := range GetOperands(call) {
@@ -355,15 +343,15 @@ func report(ctx context.Context, call *ssa.Call) {
 	}
 }
 
-type contextKey int
-
-const (
-	_ contextKey = iota
-	passKey
-	ssaKey
-	inspectorKey
-	posMapKey
-)
+func buildPosMap(ctx context.Context) map[token.Pos][]ast.Node {
+	posMap := make(map[token.Pos][]ast.Node)
+	getInspector(ctx).Preorder(nil, func(node ast.Node) {
+		for i := node.Pos(); i <= node.End(); i++ {
+			posMap[i] = append(posMap[i], node)
+		}
+	})
+	return posMap
+}
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	ctx := context.Background()
