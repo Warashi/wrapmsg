@@ -18,7 +18,7 @@ import (
 	"golang.org/x/tools/go/ssa"
 )
 
-const doc = "wrapmsg is ..."
+const doc = "wrapmsg is linter for error-wrapping message"
 
 // Analyzer is ...
 var Analyzer = &analysis.Analyzer{
