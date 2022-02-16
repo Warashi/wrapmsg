@@ -7,7 +7,6 @@ import (
 	"go/constant"
 	"go/printer"
 	"go/token"
-	"log"
 	"strconv"
 	"strings"
 
@@ -73,70 +72,36 @@ func getIdentName(v poser) []string {
 	ident, ok := getIdent(v)
 	switch v := v.(type) {
 	case *ssa.Slice:
-		if ok {
-			log.Println("Slice:", ident.Name)
-		}
 		return nil
 	case *ssa.Alloc:
-		if ok {
-			log.Println("Alloc:", ident.Name)
-		}
 		switch v.Comment {
 		case "varargs":
 			return nil
-		default:
-			log.Println("Alloc.Comment:", v.Comment)
 		}
 		break
 	case *ssa.IndexAddr:
-		if ok {
-			log.Println("IndexAddr:", ident.Name)
-		}
 		break
 	case *ssa.FieldAddr:
-		if ok {
-			log.Println("FieldAddr:", ident.Name)
-		}
 		return nil
 	case *ssa.Store:
-		if ok {
-			log.Println("Store:", ident.Name)
-		}
 		return nil
 	case *ssa.ChangeInterface:
-		if ok {
-			log.Println("ChangeInterface:", ident.Name)
-		}
 		return nil
 	case *ssa.Call:
-		if ok {
-			log.Println("Call:", ident.Name)
-		}
 		break
 	case *ssa.UnOp:
-		if ok {
-			log.Println("UnOp:", ident.Name)
-		}
 		break
 	case *ssa.Parameter:
-		log.Println("Parameter:", v.Object().Name())
 		return []string{v.Object().Name()}
 	case *ssa.Function:
-		log.Println("Function:", v.Object().Name())
 		break
 	case *ast.Ident:
-		log.Println("ast.Ident", v.Name)
 		return []string{v.Name}
 	case *ast.SelectorExpr:
-		log.Printf("ast.SelectorExpr(X: %v, Sel: %v)\n", v.X, v.Sel)
 		return nil
 	case *ast.CallExpr:
-		if ok {
-			log.Println("ast.CallExpr:", ident.Name)
-		}
 		return nil
 	default:
-		log.Printf("Default(%[1]T)[%[2]v]: %[1]v\n", v, ok)
 		return nil
 	}
 
