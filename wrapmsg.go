@@ -63,50 +63,6 @@ func getIdent(ctx context.Context, v poser) (*ast.Ident, bool) {
 	return nil, false
 }
 
-func getIdentName(ctx context.Context, v poser) []string {
-	ident, ok := getIdent(ctx, v)
-	switch v := v.(type) {
-	case *ssa.Slice:
-		return nil
-	case *ssa.Alloc:
-		switch v.Comment {
-		case "varargs":
-			return nil
-		}
-		break
-	case *ssa.IndexAddr:
-		break
-	case *ssa.FieldAddr:
-		return nil
-	case *ssa.Store:
-		return nil
-	case *ssa.ChangeInterface:
-		return nil
-	case *ssa.Call:
-		break
-	case *ssa.UnOp:
-		break
-	case *ssa.Parameter:
-		return []string{v.Object().Name()}
-	case *ssa.Function:
-		break
-	case *ast.Ident:
-		return []string{v.Name}
-	case *ast.SelectorExpr:
-		return nil
-	case *ast.CallExpr:
-		return nil
-	default:
-		return nil
-	}
-
-	if !ok {
-		return nil
-	}
-
-	return []string{ident.Name}
-}
-
 type poser interface {
 	Pos() token.Pos
 }
@@ -122,20 +78,18 @@ type posOperander interface {
 }
 
 func (w *walker) walkRefs(ctx context.Context, depth int, v posReferrerer) ([]string, bool) {
-	org := v
 	for _, v := range *v.Referrers() {
 		if r, ok := w.walk(ctx, depth, v); ok {
-			return append(r, getIdentName(ctx, org)...), true
+			return r, true
 		}
 	}
 	return nil, false
 }
 
 func (w *walker) walkOperands(ctx context.Context, depth int, v posOperander) ([]string, bool) {
-	org := v
 	for _, v := range getOperands(v) {
 		if r, ok := w.walk(ctx, depth, v); ok {
-			return append(r, getIdentName(ctx, org)...), true
+			return r, true
 		}
 	}
 	return nil, false
