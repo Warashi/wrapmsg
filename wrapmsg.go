@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"strconv"
 	"strings"
+	"sync"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
@@ -181,8 +182,11 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 }
 
 func buildPosMap() {
+	var mu sync.Mutex
 	posMap = make(map[token.Pos][]ast.Node)
 	inspected.Preorder(nil, func(node ast.Node) {
+		mu.Lock()
+		defer mu.Unlock()
 		for i := node.Pos(); i <= node.End(); i++ {
 			posMap[i] = append(posMap[i], node)
 		}
