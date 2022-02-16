@@ -188,7 +188,9 @@ func buildPosMap() {
 		mu.Lock()
 		defer mu.Unlock()
 		for i := node.Pos(); i <= node.End(); i++ {
-			posMap[i] = append(posMap[i], node)
+			stack := posMap[i]
+			stack = append(stack, node)
+			posMap[i] = stack
 		}
 	})
 }
