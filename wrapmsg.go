@@ -2,6 +2,7 @@ package wrapmsg
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"go/ast"
 	"go/constant"
@@ -9,7 +10,6 @@ import (
 	"go/token"
 	"strconv"
 	"strings"
-	"sync"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
@@ -29,29 +29,6 @@ var Analyzer = &analysis.Analyzer{
 		inspect.Analyzer,
 		buildssa.Analyzer,
 	},
-}
-
-var (
-	pass      *analysis.Pass
-	builtssa  *buildssa.SSA
-	inspected *inspector.Inspector
-	posMap    cMap
-)
-
-type cMap struct {
-  base sync.Map
-}
-
-func (m *cMap) Load(key token.Pos) []ast.Node {
-  r, _ := m.base.Load(key)
-  if r == nil {
-    return nil
-  }
-  return r.([]ast.Node)
-}
-
-func (m *cMap) Store(key token.Pos, value []ast.Node) {
-  m.base.Store(key, value)
 }
 
 type walker struct {
@@ -75,8 +52,9 @@ func (w *walker) contains(n interface{}) bool {
 	return false
 }
 
-func getIdent(v poser) (*ast.Ident, bool) {
-	for _, node := range posMap.Load(v.Pos()) {
+func getIdent(ctx context.Context, v poser) (*ast.Ident, bool) {
+	posMap := ctx.Value(posMapKey).(map[token.Pos][]ast.Node)
+	for _, node := range posMap[v.Pos()] {
 		ident, ok := node.(*ast.Ident)
 		if ok {
 			return ident, true
@@ -85,8 +63,8 @@ func getIdent(v poser) (*ast.Ident, bool) {
 	return nil, false
 }
 
-func getIdentName(v poser) []string {
-	ident, ok := getIdent(v)
+func getIdentName(ctx context.Context, v poser) []string {
+	ident, ok := getIdent(ctx, v)
 	switch v := v.(type) {
 	case *ssa.Slice:
 		return nil
@@ -143,33 +121,34 @@ type posOperander interface {
 	Operander
 }
 
-func (w *walker) walkRefs(depth int, v posReferrerer) ([]string, bool) {
+func (w *walker) walkRefs(ctx context.Context, depth int, v posReferrerer) ([]string, bool) {
 	org := v
 	for _, v := range *v.Referrers() {
-		if r, ok := w.walk(depth, v); ok {
-			return append(r, getIdentName(org)...), true
+		if r, ok := w.walk(ctx, depth, v); ok {
+			return append(r, getIdentName(ctx, org)...), true
 		}
 	}
 	return nil, false
 }
 
-func (w *walker) walkOperands(depth int, v posOperander) ([]string, bool) {
+func (w *walker) walkOperands(ctx context.Context, depth int, v posOperander) ([]string, bool) {
 	org := v
 	for _, v := range GetOperands(v) {
-		if r, ok := w.walk(depth, v); ok {
-			return append(r, getIdentName(org)...), true
+		if r, ok := w.walk(ctx, depth, v); ok {
+			return append(r, getIdentName(ctx, org)...), true
 		}
 	}
 	return nil, false
 }
 
-func format(expr ast.Expr) string {
+func format(ctx context.Context, expr ast.Expr) string {
+	pass := ctx.Value(passKey).(*analysis.Pass)
 	var b bytes.Buffer
 	printer.Fprint(&b, pass.Fset, expr)
 	return b.String()
 }
 
-func (w *walker) walk(depth int, v poser) ([]string, bool) {
+func (w *walker) walk(ctx context.Context, depth int, v poser) ([]string, bool) {
 	if w.contains(v) {
 		return nil, false
 	}
@@ -179,17 +158,17 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	switch v := v.(type) {
 	case *ssa.Const:
 	case *ssa.Slice:
-		return w.walkOperands(depth+1, v)
+		return w.walkOperands(ctx, depth+1, v)
 	case *ssa.Alloc:
-		return w.walkRefs(depth+1, v)
+		return w.walkRefs(ctx, depth+1, v)
 	case *ssa.IndexAddr:
-		return w.walkRefs(depth+1, v)
+		return w.walkRefs(ctx, depth+1, v)
 	case *ssa.Store:
-		return w.walkOperands(depth+1, v)
+		return w.walkOperands(ctx, depth+1, v)
 	case *ssa.ChangeInterface:
-		return w.walkOperands(depth+1, v)
+		return w.walkOperands(ctx, depth+1, v)
 	case *ssa.Call:
-		call, ok := getCallExpr(v)
+		call, ok := getCallExpr(ctx, v)
 		if ok {
 			return formatCallExpr(call), true
 		}
@@ -197,17 +176,15 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	return nil, false
 }
 
-func buildPosMap() {
-	var mu sync.Mutex
-	inspected.Preorder(nil, func(node ast.Node) {
-		mu.Lock()
-		defer mu.Unlock()
+func buildPosMap(ctx context.Context) map[token.Pos][]ast.Node {
+	posMap := make(map[token.Pos][]ast.Node)
+	i := ctx.Value(inspectorKey).(*inspector.Inspector)
+	i.Preorder(nil, func(node ast.Node) {
 		for i := node.Pos(); i <= node.End(); i++ {
-			stack := posMap.Load(i)
-			stack = append(stack, node)
-			posMap.Store(i, stack)
+			posMap[i] = append(posMap[i], node)
 		}
 	})
+	return posMap
 }
 
 func isErrorf(call *ssa.Call) bool {
@@ -224,9 +201,10 @@ func isErrorf(call *ssa.Call) bool {
 	return false
 }
 
-func iterateErrorf() []*ssa.Call {
+func iterateErrorf(ctx context.Context) []*ssa.Call {
 	var r []*ssa.Call
-	for _, f := range builtssa.SrcFuncs {
+	s := ctx.Value(ssaKey).(*buildssa.SSA)
+	for _, f := range s.SrcFuncs {
 		for _, b := range f.Blocks {
 			for _, instr := range b.Instrs {
 				switch v := instr.(type) {
@@ -265,9 +243,10 @@ func formatCallExpr(call *ast.CallExpr) []string {
 	return nil
 }
 
-func getCallExpr(call poser) (*ast.CallExpr, bool) {
+func getCallExpr(ctx context.Context, call poser) (*ast.CallExpr, bool) {
+	posMap := ctx.Value(posMapKey).(map[token.Pos][]ast.Node)
 	for i := call.Pos(); i > 0; i-- {
-		stack := posMap.Load(i)
+		stack := posMap[i]
 		if len(stack) == 0 {
 			break
 		}
@@ -304,11 +283,12 @@ func replaceConst(expr *ast.CallExpr, actual, want string) *ast.CallExpr {
 	return expr
 }
 
-func genText(expr *ast.CallExpr) []byte {
-	return []byte(format(expr))
+func genText(ctx context.Context, expr *ast.CallExpr) []byte {
+	return []byte(format(ctx, expr))
 }
 
-func report(pass *analysis.Pass, call *ssa.Call) {
+func report(ctx context.Context, call *ssa.Call) {
+	pass := ctx.Value(passKey).(*analysis.Pass)
 	var actual, want string
 	var gotActual, gotWant bool
 	for _, v := range GetOperands(call) {
@@ -327,14 +307,14 @@ func report(pass *analysis.Pass, call *ssa.Call) {
 			}
 		case *ssa.Slice:
 			w := new(walker)
-			if r, ok := w.walk(0, v); ok && len(r) > 0 {
+			if r, ok := w.walk(ctx, 0, v); ok && len(r) > 0 {
 				want = strings.Join(r, ".") + ": %w"
 				gotWant = true
 			}
 		}
 	}
 	if gotWant && actual != want {
-		node, ok := getCallExpr(call)
+		node, ok := getCallExpr(ctx, call)
 		if !ok {
 			return
 		}
@@ -346,19 +326,30 @@ func report(pass *analysis.Pass, call *ssa.Call) {
 			SuggestedFixes: []analysis.SuggestedFix{{TextEdits: []analysis.TextEdit{{
 				Pos:     pos,
 				End:     end,
-				NewText: genText(replaceConst(node, actual, want)),
+				NewText: genText(ctx, replaceConst(node, actual, want)),
 			}}}},
 		})
 	}
 }
 
-func run(p *analysis.Pass) (interface{}, error) {
-	pass = p
-	builtssa = pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
-	inspected = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	buildPosMap()
-	for _, call := range iterateErrorf() {
-		report(pass, call)
+type contextKey int
+
+const (
+	_ contextKey = iota
+	passKey
+	ssaKey
+	inspectorKey
+	posMapKey
+)
+
+func run(pass *analysis.Pass) (interface{}, error) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, passKey, pass)
+	ctx = context.WithValue(ctx, ssaKey, pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA))
+	ctx = context.WithValue(ctx, inspectorKey, pass.ResultOf[inspect.Analyzer].(*inspector.Inspector))
+	ctx = context.WithValue(ctx, posMapKey, buildPosMap(ctx))
+	for _, call := range iterateErrorf(ctx) {
+		report(ctx, call)
 	}
 	return nil, nil
 }
