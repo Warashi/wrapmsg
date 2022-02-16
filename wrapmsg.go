@@ -149,6 +149,14 @@ func report(ctx context.Context, call *ssa.Call) {
 	}
 }
 
+func prepare(ctx context.Context, pass *analysis.Pass) context.Context {
+	ctx = context.WithValue(ctx, passKey, pass)
+	ctx = context.WithValue(ctx, ssaKey, pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA))
+	ctx = context.WithValue(ctx, inspectorKey, pass.ResultOf[inspect.Analyzer].(*inspector.Inspector))
+	ctx = context.WithValue(ctx, posMapKey, buildPosMap(ctx))
+	return ctx
+}
+
 func buildPosMap(ctx context.Context) map[token.Pos][]ast.Node {
 	posMap := make(map[token.Pos][]ast.Node)
 	getInspector(ctx).Preorder(nil, func(node ast.Node) {
@@ -160,11 +168,7 @@ func buildPosMap(ctx context.Context) map[token.Pos][]ast.Node {
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, passKey, pass)
-	ctx = context.WithValue(ctx, ssaKey, pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA))
-	ctx = context.WithValue(ctx, inspectorKey, pass.ResultOf[inspect.Analyzer].(*inspector.Inspector))
-	ctx = context.WithValue(ctx, posMapKey, buildPosMap(ctx))
+	ctx := prepare(context.Background(), pass)
 	for _, call := range iterateErrorf(ctx) {
 		report(ctx, call)
 	}
