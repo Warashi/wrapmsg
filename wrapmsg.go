@@ -18,11 +18,6 @@ import (
 	"golang.org/x/tools/go/ssa"
 )
 
-func init() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	fmt.Println("----------Start----------")
-}
-
 const doc = "wrapmsg is ..."
 
 // Analyzer is ...
@@ -42,12 +37,6 @@ var (
 	inspected *inspector.Inspector
 	posMap    map[token.Pos][]ast.Node
 )
-
-func printIndent(depth int) {
-	for i := 0; i < depth; i++ {
-		fmt.Print("\t")
-	}
-}
 
 type walker struct {
 	stack []interface{}
@@ -199,9 +188,6 @@ func format(expr ast.Expr) string {
 }
 
 func (w *walker) walk(depth int, v poser) ([]string, bool) {
-	printIndent(depth)
-	log.Printf("%[1]v\t%[1]T\t%[2]v\n", v, getIdentName(v))
-
 	if w.contains(v) {
 		return nil, false
 	}
@@ -213,7 +199,6 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	case *ssa.Slice:
 		return w.walkOperands(depth+1, v)
 	case *ssa.Alloc:
-		log.Printf("%#v", posMap[v.Pos()])
 		return w.walkRefs(depth+1, v)
 	case *ssa.IndexAddr:
 		return w.walkRefs(depth+1, v)
@@ -226,8 +211,6 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 		if ok {
 			return formatCallExpr(call), true
 		}
-	default:
-		log.Printf("Default(%[1]T): %[1]v\n", v)
 	}
 	return nil, false
 }
@@ -243,6 +226,7 @@ func buildPosMap() {
 
 func isErrorf(call *ssa.Call) bool {
 	if f, ok := GetOperands(call)[0].(*ssa.Function); ok && f.Pkg.Pkg.Path() == "testing" {
+		// avoid targeting (*testing.T).Errorf
 		return false
 	}
 	if f := call.Common().Method; f != nil {
@@ -272,31 +256,25 @@ func iterateErrorf() []*ssa.Call {
 }
 
 func formatSelectorExpr(sel *ast.SelectorExpr) []string {
-	log.Printf("formatSelectorExpr: %#v", sel)
 	var ret []string
 	switch x := sel.X.(type) {
 	case *ast.CallExpr:
 		ret = append(formatCallExpr(x), ret...)
 	case *ast.Ident:
-		log.Println("formatSelectorExpr-ast.Ident", x.Name)
 		ret = append(ret, x.Name)
 	case *ast.SelectorExpr:
 		ret = append(formatSelectorExpr(x), ret...)
-	default:
 	}
 	ret = append(ret, sel.Sel.Name)
 	return ret
 }
 
 func formatCallExpr(call *ast.CallExpr) []string {
-	log.Printf("formatCallExpr-Fun: %#v", call.Fun)
-	log.Printf("formatCallExpr-Args: %#v", call.Args)
 	switch f := call.Fun.(type) {
 	case *ast.SelectorExpr:
 		return formatSelectorExpr(f)
 	case *ast.Ident:
 		return []string{f.Name}
-	default:
 	}
 	return nil
 }
@@ -348,7 +326,6 @@ func report(pass *analysis.Pass, call *ssa.Call) {
 	var actual, want string
 	var gotActual, gotWant bool
 	for _, v := range GetOperands(call) {
-		log.Printf("%[1]v\t%[1]T\n", v)
 		switch v := v.(type) {
 		case *ssa.Const:
 			if v.Value == nil || v.Value.Kind() != constant.String {
@@ -369,7 +346,6 @@ func report(pass *analysis.Pass, call *ssa.Call) {
 	if gotWant && actual != want {
 		node, ok := getCallExpr(call)
 		if !ok {
-			panic(call)
 			return
 		}
 		pos, end := node.Pos(), node.End()
