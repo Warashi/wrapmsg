@@ -11,7 +11,7 @@ import (
 func f() error {
 	var ptr *p
 	if err := ptr.Err(); err != nil {
-		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "ptr.Err: %w"`
+		return fmt.Errorf("ptr.Err: %w", err) // want `the error-wrapping message should be "ptr.Err: %w"`
 	}
 	if err := ptr.Err(); err != nil {
 		return fmt.Errorf("ptr.Err: %w", err)

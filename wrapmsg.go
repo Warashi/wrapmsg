@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
-	"go/format"
+	"go/printer"
 	"go/token"
-	"go/types"
 	"log"
 	"strconv"
 	"strings"
@@ -38,6 +37,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 var (
+	pass      *analysis.Pass
 	builtssa  *buildssa.SSA
 	inspected *inspector.Inspector
 	posMap    map[token.Pos][]ast.Node
@@ -70,19 +70,18 @@ func (w *walker) contains(n interface{}) bool {
 	return false
 }
 
-func getIdent(v poser) *ast.Ident {
+func getIdent(v poser) (*ast.Ident, bool) {
 	for _, node := range posMap[v.Pos()] {
 		ident, ok := node.(*ast.Ident)
 		if ok {
-			return ident
+			return ident, true
 		}
 	}
-	return nil
+	return nil, false
 }
 
 func getIdentName(v poser) []string {
-	ident := getIdent(v)
-	ok := ident != nil
+	ident, ok := getIdent(v)
 	switch v := v.(type) {
 	case *ssa.Slice:
 		if ok {
@@ -193,19 +192,10 @@ func (w *walker) walkOperands(depth int, v posOperander) ([]string, bool) {
 	return nil, false
 }
 
-func getCallPackage(call *ssa.Call) *types.Package {
-	if f := call.Common().Method; f != nil {
-		return f.Pkg()
-	}
-	return call.Common().StaticCallee().Package().Pkg
-}
-
-func getCallPackageName(call *ssa.Call) []string {
-	ident := getIdent(getCallExpr(call))
-	if ident != nil {
-		return []string{ident.Name}
-	}
-	return nil
+func format(expr ast.Expr) string {
+	var b bytes.Buffer
+	printer.Fprint(&b, pass.Fset, expr)
+	return b.String()
 }
 
 func (w *walker) walk(depth int, v poser) ([]string, bool) {
@@ -223,13 +213,8 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	case *ssa.Slice:
 		return w.walkOperands(depth+1, v)
 	case *ssa.Alloc:
-		var ret = getIdentName(v)
-		if r, ok := w.walkRefs(depth+1, v); ok {
-			ret = append(ret, r...)
-		}
-		return ret, true
-	case *ssa.FieldAddr:
-		return w.walkOperands(depth+1, v)
+		log.Printf("%#v", posMap[v.Pos()])
+		return w.walkRefs(depth+1, v)
 	case *ssa.IndexAddr:
 		return w.walkRefs(depth+1, v)
 	case *ssa.Store:
@@ -237,45 +222,10 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 	case *ssa.ChangeInterface:
 		return w.walkOperands(depth+1, v)
 	case *ssa.Call:
-		var ret []string
-		switch {
-		case v.Common().IsInvoke():
-			// interfaceからのメソッド呼び出し
-			switch v := getCallExpr(v).Fun.(type) {
-			case *ast.SelectorExpr:
-				ret = append(ret, getIdentName(v.X)...)
-			default:
-				log.Printf("Default(%[1]T): %[1]v\n", v)
-			}
-		case v.Common().Signature().Recv() != nil:
-			// interfaceではないメソッド呼び出し
-			if r, ok := w.walk(depth, v.Common().Args[0]); ok {
-				ret = append(ret, r...)
-			}
-		case getCallPackage(v) != builtssa.Pkg.Pkg:
-			// 別パッケージを呼んでる
-			ret = append(ret, getCallPackageName(v)...)
+		call, ok := getCallExpr(v)
+		if ok {
+			return formatCallExpr(call), true
 		}
-		if r, ok := w.walkOperands(depth+1, v); ok {
-			ret = append(ret, r...)
-		}
-		return ret, true
-	case *ssa.UnOp:
-		var ret []string
-		for _, v := range GetOperands(v) {
-			if _, ok := v.(*ssa.Alloc); ok {
-				continue
-			}
-			if r, ok := w.walk(depth+1, v); ok {
-				ret = append(ret, r...)
-			}
-		}
-		return append(ret, getIdentName(v)...), true
-	case *ssa.Parameter:
-		return getIdentName(v), true
-	case *ssa.Function:
-		r := getIdentName(v)
-		return r, true
 	default:
 		log.Printf("Default(%[1]T): %[1]v\n", v)
 	}
@@ -284,11 +234,10 @@ func (w *walker) walk(depth int, v poser) ([]string, bool) {
 
 func buildPosMap() {
 	posMap = make(map[token.Pos][]ast.Node)
-	inspected.WithStack(nil, func(node ast.Node, push bool, stack []ast.Node) bool {
+	inspected.Preorder(nil, func(node ast.Node) {
 		for i := node.Pos(); i <= node.End(); i++ {
-			posMap[i] = stack
+			posMap[i] = append(posMap[i], node)
 		}
-		return true
 	})
 }
 
@@ -319,14 +268,50 @@ func iterateErrorf() []*ssa.Call {
 	return r
 }
 
-func getCallExpr(call *ssa.Call) *ast.CallExpr {
-	for _, node := range posMap[call.Pos()] {
-		ident, ok := node.(*ast.CallExpr)
-		if ok {
-			return ident
-		}
+func formatSelectorExpr(sel *ast.SelectorExpr) []string {
+	log.Printf("formatSelectorExpr: %#v", sel)
+	var ret []string
+	switch x := sel.X.(type) {
+	case *ast.CallExpr:
+		ret = append(formatCallExpr(x), ret...)
+	case *ast.Ident:
+		log.Println("formatSelectorExpr-ast.Ident", x.Name)
+		ret = append(ret, x.Name)
+	case *ast.SelectorExpr:
+		ret = append(formatSelectorExpr(x), ret...)
+	default:
+	}
+	ret = append(ret, sel.Sel.Name)
+	return ret
+}
+
+func formatCallExpr(call *ast.CallExpr) []string {
+	log.Printf("formatCallExpr-Fun: %#v", call.Fun)
+	log.Printf("formatCallExpr-Args: %#v", call.Args)
+	switch f := call.Fun.(type) {
+	case *ast.SelectorExpr:
+		return formatSelectorExpr(f)
+	case *ast.Ident:
+		return []string{f.Name}
+	default:
 	}
 	return nil
+}
+
+func getCallExpr(call poser) (*ast.CallExpr, bool) {
+	for i := call.Pos(); i > 0; i-- {
+		stack := posMap[i]
+		if len(stack) == 0 {
+			break
+		}
+		for _, node := range stack {
+			ident, ok := node.(*ast.CallExpr)
+			if ok {
+				return ident, true
+			}
+		}
+	}
+	return nil, false
 }
 
 func replaceConst(expr *ast.CallExpr, actual, want string) *ast.CallExpr {
@@ -352,9 +337,7 @@ func replaceConst(expr *ast.CallExpr, actual, want string) *ast.CallExpr {
 }
 
 func genText(expr *ast.CallExpr) []byte {
-	buf := new(bytes.Buffer)
-	_ = format.Node(buf, token.NewFileSet(), expr)
-	return buf.Bytes()
+	return []byte(format(expr))
 }
 
 func report(pass *analysis.Pass, call *ssa.Call) {
@@ -377,7 +360,11 @@ func report(pass *analysis.Pass, call *ssa.Call) {
 		}
 	}
 	if gotWant && actual != want {
-		node := getCallExpr(call)
+		node, ok := getCallExpr(call)
+		if !ok {
+			panic(call)
+			return
+		}
 		pos, end := node.Pos(), node.End()
 		pass.Report(analysis.Diagnostic{
 			Pos:     pos,
@@ -392,7 +379,8 @@ func report(pass *analysis.Pass, call *ssa.Call) {
 	}
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(p *analysis.Pass) (interface{}, error) {
+	pass = p
 	builtssa = pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
 	inspected = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	buildPosMap()
