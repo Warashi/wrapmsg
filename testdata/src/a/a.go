@@ -8,6 +8,18 @@ import (
 	c "a/b"
 )
 
+func d() error {
+	ttt := struct{ t []t }{t: make([]t, 3)}
+	if err := ttt.t[0].Err(); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "ttt\.t\[0\]\.Err: %w"`
+	}
+	var i int
+	if err := ttt.t[i].Err(); err != nil {
+		return fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "ttt\.t\[i\]\.Err: %w"`
+	}
+	return nil
+}
+
 func e() error {
 	ctx := context.Background()
 	return fmt.Errorf("hoge: %w", ctx.Err()) // want `the error-wrapping message should be "ctx.Err: %w"`
