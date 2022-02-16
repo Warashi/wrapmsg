@@ -52,17 +52,6 @@ func (w *walker) contains(n interface{}) bool {
 	return false
 }
 
-func getIdent(ctx context.Context, v poser) (*ast.Ident, bool) {
-	posMap := getPosMap(ctx)
-	for _, node := range posMap[v.Pos()] {
-		ident, ok := node.(*ast.Ident)
-		if ok {
-			return ident, true
-		}
-	}
-	return nil, false
-}
-
 type poser interface {
 	Pos() token.Pos
 }
