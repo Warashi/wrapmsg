@@ -300,8 +300,12 @@ func report(pass *analysis.Pass, call *ssa.Call) {
 			if v.Value == nil || v.Value.Kind() != constant.String {
 				continue
 			}
+			val := constant.StringVal(v.Value)
+			if !strings.Contains(val, "%w") {
+				continue
+			}
 			if !gotActual {
-				actual = constant.StringVal(v.Value)
+				actual = val
 				gotActual = true
 			}
 		case *ssa.Slice:
