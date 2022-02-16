@@ -10,7 +10,7 @@ import (
 
 func e() error {
 	ctx := context.Background()
-	return fmt.Errorf("hoge: %w", ctx.Err()) // want `the error-wrapping message should be "ctx.Err: %w"`
+	return fmt.Errorf("ctx.Err: %w", ctx.Err()) // want `the error-wrapping message should be "ctx.Err: %w"`
 }
 
 func (mm mmu) Err(ctx context.Context) error {
