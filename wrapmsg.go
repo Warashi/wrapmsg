@@ -307,7 +307,8 @@ func getCallExpr(call poser) (*ast.CallExpr, bool) {
 		if len(stack) == 0 {
 			break
 		}
-		for _, node := range stack {
+		for j := range stack {
+			node := stack[len(stack)-1-j]
 			ident, ok := node.(*ast.CallExpr)
 			if ok {
 				return ident, true

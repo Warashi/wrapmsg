@@ -8,6 +8,11 @@ import (
 	c "a/b"
 )
 
+func e() error {
+	ctx := context.Background()
+	return fmt.Errorf("hoge: %w", ctx.Err()) // want `the error-wrapping message should be "ctx.Err: %w"`
+}
+
 func (mm mmu) Err(ctx context.Context) error {
 	for _, m := range mm {
 		if err := m.Err(ctx); err != nil {
