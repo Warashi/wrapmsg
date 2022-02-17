@@ -1,0 +1,35 @@
+name: Bug Report
+description: File a bug report
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees:
+  - Warashi
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  - type: checkboxes
+    id: reproduce-with-latest
+    attributes:
+      label: Does this issue reproduce with the latest release?
+      options:
+        - label: Yes
+  - type: textarea
+    id: done
+    attributes:
+      label: What did you do?
+    validations:
+      required: true
+  - type: textarea
+    id: expect
+    attributes:
+      label: What did you expect to see?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What did you see instead?
+    validations:
+      required: true

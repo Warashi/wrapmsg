@@ -1,0 +1,23 @@
+name: Enhancements Suggestion
+description: Suggest enhancements
+title: "[Suggest]: "
+labels: ["enhancement", "triage"]
+assignees:
+  - Warashi
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest enhancements!
+  - type: textarea
+    id: done
+    attributes:
+      label: What are you frustrated with?
+    validations:
+      required: true
+  - type: textarea
+    id: expect
+    attributes:
+      label: What feature would resolve your frustration?
+    validations:
+      required: true
