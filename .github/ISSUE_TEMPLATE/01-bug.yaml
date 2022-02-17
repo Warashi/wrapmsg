@@ -14,7 +14,7 @@ body:
     attributes:
       label: Does this issue reproduce with the latest release?
       options:
-        - label: Yes
+        - label: "Yes"
   - type: textarea
     id: done
     attributes:
