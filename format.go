@@ -74,7 +74,6 @@ func formatIndexExpr(expr *ast.IndexExpr) []string {
 	switch x := expr.X.(type) {
 	case *ast.SelectorExpr:
 		ret = append(formatSelectorExpr(x), ret...)
-	default:
 	}
 
 	switch x := expr.Index.(type) {
