@@ -1,0 +1,78 @@
+package a
+
+import (
+	"context"
+	"fmt"
+)
+
+func init() {
+	// call method of interface field of pointer variable
+	ptt := &itt{
+		t:  t{},
+		ct: ct{},
+	}
+	if err := ptt.t.Err(); err != nil {
+		_ = fmt.Errorf("ptt.t.Err: %w", err) // want `the error-wrapping message should be "ptt.t.Err: %w"`
+	}
+	if err := ptt.t.Err(); err != nil {
+		_ = fmt.Errorf("ptt.t.Err: %w", err)
+	}
+	if err := ptt.ct.Err(context.Background()); err != nil {
+		_ = fmt.Errorf("ptt.ct.Err: %w", err) // want `the error-wrapping message should be "ptt.ct.Err: %w"`
+	}
+	if err := ptt.ct.Err(context.Background()); err != nil {
+		_ = fmt.Errorf("ptt.ct.Err: %w", err)
+	}
+}
+
+func init() {
+	// call method of interface field of struct variable
+	itt := itt{
+		t:  t{},
+		ct: ct{},
+	}
+	if err := itt.t.Err(); err != nil {
+		_ = fmt.Errorf("itt.t.Err: %w", err) // want `the error-wrapping message should be "itt.t.Err: %w"`
+	}
+	if err := itt.t.Err(); err != nil {
+		_ = fmt.Errorf("itt.t.Err: %w", err)
+	}
+	if err := itt.ct.Err(context.Background()); err != nil {
+		_ = fmt.Errorf("itt.ct.Err: %w", err) // want `the error-wrapping message should be "itt.ct.Err: %w"`
+	}
+	if err := itt.ct.Err(context.Background()); err != nil {
+		_ = fmt.Errorf("itt.ct.Err: %w", err)
+	}
+}
+
+func init() {
+	// call method of field
+	tt := tt{}
+	if err := tt.t.Err(); err != nil {
+		_ = fmt.Errorf("tt.t.Err: %w", err) // want `the error-wrapping message should be "tt.t.Err: %w"`
+	}
+	if err := tt.t.Err(); err != nil {
+		_ = fmt.Errorf("tt.t.Err: %w", err)
+	}
+	if err := tt.ct.Err(context.Background()); err != nil {
+		_ = fmt.Errorf("tt.ct.Err: %w", err) // want `the error-wrapping message should be "tt.ct.Err: %w"`
+	}
+	if err := tt.ct.Err(context.Background()); err != nil {
+		_ = fmt.Errorf("tt.ct.Err: %w", err)
+	}
+}
+
+func (a *a) A(ctx context.Context) {
+	if err := a.ct.Err(ctx); err != nil {
+		_ = fmt.Errorf("a.ct.Err: %w", err) // want `the error-wrapping message should be "a\.ct\.Err: %w"`
+	}
+	if err := a.ct.Err(ctx); err != nil {
+		_ = fmt.Errorf("a.ct.Err: %w", err)
+	}
+	if err := a.ict.Err(ctx); err != nil {
+		_ = fmt.Errorf("a.ict.Err: %w", err) // want `the error-wrapping message should be "a\.ict\.Err: %w"`
+	}
+	if err := a.ict.Err(ctx); err != nil {
+		_ = fmt.Errorf("a.ict.Err: %w", err)
+	}
+}

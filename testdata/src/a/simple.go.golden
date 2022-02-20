@@ -1,0 +1,63 @@
+package a
+
+import (
+	"context"
+	"fmt"
+
+	"a/b"
+)
+
+func init() {
+	// call same package
+	if err := g(); err != nil {
+		_ = fmt.Errorf("g: %w", err) // want `the error-wrapping message should be "g: %w"`
+	}
+	if err := g(); err != nil {
+		_ = fmt.Errorf("g: %w", err)
+	}
+
+}
+
+func init() {
+	// call other package
+	if err := b.F(); err != nil {
+		_ = fmt.Errorf("b.F: %w", err) // want `the error-wrapping message should be "b\.F: %w"`
+	}
+	if err := b.F(); err != nil {
+		_ = fmt.Errorf("b.F: %w", err)
+	}
+
+	// call other package with line break
+	if err := b.
+		F(); err != nil {
+		_ = fmt.Errorf("b.F: %w", err) // want `the error-wrapping message should be "b\.F: %w"`
+	}
+	if err := b.
+		F(); err != nil {
+		_ = fmt.Errorf("b.F: %w", err)
+	}
+}
+
+func init() {
+	// call same package with args
+	if err := ctx(context.Background()); err != nil {
+		_ = fmt.Errorf("ctx: %w", err) // want `the error-wrapping message should be "ctx: %w"`
+	}
+	if err := ctx(context.Background()); err != nil {
+		_ = fmt.Errorf("ctx: %w", err)
+	}
+
+	tmp := context.Background()
+	if err := ctx(tmp); err != nil {
+		_ = fmt.Errorf("ctx: %w", err) // want `the error-wrapping message should be "ctx: %w"`
+	}
+	if err := ctx(tmp); err != nil {
+		_ = fmt.Errorf("ctx: %w", err)
+	}
+}
+
+func init() {
+	// wrapped error is not variable
+	ctx := context.Background()
+	_ = fmt.Errorf("ctx.Err: %w", ctx.Err()) // want `the error-wrapping message should be "ctx.Err: %w"`
+}
