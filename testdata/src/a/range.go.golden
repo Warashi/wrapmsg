@@ -1,0 +1,63 @@
+package a
+
+import (
+	"context"
+	"fmt"
+)
+
+func init() {
+	// range variable
+	for _, ct := range []ct{{}, {}} {
+		if err := ct.Err(context.Background()); err != nil {
+			_ = fmt.Errorf("ct.Err: %w", err) // want `the error-wrapping message should be "ct.Err: %w"`
+		}
+	}
+	for _, ct := range []ct{{}, {}} {
+		if err := ct.Err(context.Background()); err != nil {
+			_ = fmt.Errorf("ct.Err: %w", err)
+		}
+	}
+	for _, ct := range []*ct{{}, {}} {
+		if err := ct.Err(context.Background()); err != nil {
+			_ = fmt.Errorf("ct.Err: %w", err) // want `the error-wrapping message should be "ct.Err: %w"`
+		}
+	}
+	for _, ct := range []*ct{{}, {}} {
+		if err := ct.Err(context.Background()); err != nil {
+			_ = fmt.Errorf("ct.Err: %w", err)
+		}
+	}
+}
+
+func init() {
+	r := r{}
+	rr := r.r(context.Background())
+	for _, t := range rr {
+		if err := t.Err(context.Background()); err != nil {
+			_ = fmt.Errorf("t.Err: %w", err) // want `the error-wrapping message should be "t.Err: %w"`
+		}
+		if err := t.Err(context.Background()); err != nil {
+			_ = fmt.Errorf("t.Err: %w", err)
+		}
+	}
+
+	for _, t := range r.r(context.Background()) {
+		if err := t.Err(context.Background()); err != nil {
+			_ = fmt.Errorf("t.Err: %w", err) // want `the error-wrapping message should be "t.Err: %w"`
+		}
+		if err := t.Err(context.Background()); err != nil {
+			_ = fmt.Errorf("t.Err: %w", err)
+		}
+	}
+}
+
+func (mm mmu) Err(ctx context.Context) {
+	for _, m := range mm {
+		if err := m.Err(ctx); err != nil {
+			_ = fmt.Errorf("m.Err: %w", err) // want `the error-wrapping message should be "m.Err: %w"`
+		}
+		if err := m.Err(ctx); err != nil {
+			_ = fmt.Errorf("m.Err: %w", err)
+		}
+	}
+}
