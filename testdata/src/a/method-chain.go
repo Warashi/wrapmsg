@@ -1,0 +1,137 @@
+package a
+
+import (
+	"fmt"
+
+	"a/b"
+)
+
+func init() {
+	// method chain same package
+	if err := T().Err(); err != nil {
+		_ = fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "T\.Err: %w"`
+	}
+	if err := T().Err(); err != nil {
+		_ = fmt.Errorf("T.Err: %w", err)
+	}
+
+	// method chain same package with line break
+	if err := T().
+		Err(); err != nil {
+		_ = fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "T\.Err: %w"`
+	}
+	if err := T().
+		Err(); err != nil {
+		_ = fmt.Errorf("T.Err: %w", err)
+	}
+}
+
+func init() {
+	// multi method chain same package
+	if err := T().U().Err(); err != nil {
+		_ = fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "T\.U\.Err: %w"`
+	}
+	if err := T().U().Err(); err != nil {
+		_ = fmt.Errorf("T.U.Err: %w", err)
+	}
+
+	// multi method chain same package with line break
+	if err := T().
+		U().
+		Err(); err != nil {
+		_ = fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "T\.U\.Err: %w"`
+	}
+	if err := T().
+		U().
+		Err(); err != nil {
+		_ = fmt.Errorf("T.U.Err: %w", err)
+	}
+}
+
+func init() {
+	// method chain same package with args
+	if err := T(1, 2).Err(); err != nil {
+		_ = fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "T\.Err: %w"`
+	}
+	if err := T(1, 2).Err(); err != nil {
+		_ = fmt.Errorf("T.Err: %w", err)
+	}
+
+	// method chain same package with args, line break
+	if err := T(1, 2).
+		Err(); err != nil {
+		_ = fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "T\.Err: %w"`
+	}
+	if err := T(1, 2).
+		Err(); err != nil {
+		_ = fmt.Errorf("T.Err: %w", err)
+	}
+}
+
+func init() {
+	// multi method chain same package with args
+	if err := T(1, 2).U().Err(); err != nil {
+		_ = fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "T\.U\.Err: %w"`
+	}
+	if err := T(1, 2).U().Err(); err != nil {
+		_ = fmt.Errorf("T.U.Err: %w", err)
+	}
+
+	// multi method chain same package with args, line break
+	if err := T(1, 2).
+		U().
+		Err(); err != nil {
+		_ = fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "T\.U\.Err: %w"`
+	}
+	if err := T(1, 2).
+		U().
+		Err(); err != nil {
+		_ = fmt.Errorf("T.U.Err: %w", err)
+	}
+}
+
+func init() {
+	// method chain other package
+	if err := b.T().Err(); err != nil {
+		_ = fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "b\.T\.Err: %w"`
+	}
+	if err := b.T().Err(); err != nil {
+		_ = fmt.Errorf("b.T.Err: %w", err)
+	}
+
+	// method chain other package with line break
+	if err := b.
+		T().
+		Err(); err != nil {
+		_ = fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "b\.T\.Err: %w"`
+	}
+	if err := b.
+		T().
+		Err(); err != nil {
+		_ = fmt.Errorf("b.T.Err: %w", err)
+	}
+}
+
+func init() {
+	// multi method chain other package
+	if err := b.T().U().Err(); err != nil {
+		_ = fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "b\.T\.U\.Err: %w"`
+	}
+	if err := b.T().U().Err(); err != nil {
+		_ = fmt.Errorf("b.T.U.Err: %w", err)
+	}
+
+	// multi method chain other package with line break
+	if err := b.
+		T().
+		U().
+		Err(); err != nil {
+		_ = fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "b\.T\.U\.Err: %w"`
+	}
+	if err := b.
+		T().
+		U().
+		Err(); err != nil {
+		_ = fmt.Errorf("b.T.U.Err: %w", err)
+	}
+}

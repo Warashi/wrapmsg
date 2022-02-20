@@ -1,0 +1,17 @@
+package a
+
+import (
+	"fmt"
+)
+
+func init() {
+	// contains slice index access
+	ttt := struct{ t []t }{t: make([]t, 3)}
+	if err := ttt.t[0].Err(); err != nil {
+		_ = fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "ttt\.t\[0\]\.Err: %w"`
+	}
+	var i int
+	if err := ttt.t[i].Err(); err != nil {
+		_ = fmt.Errorf("hoge: %w", err) // want `the error-wrapping message should be "ttt\.t\[i\]\.Err: %w"`
+	}
+}
