@@ -63,6 +63,8 @@ func (w *walker) walk(ctx context.Context, depth int, v poser) ([]string, bool) 
 		return w.walkOperands(ctx, depth+1, v)
 	case *ssa.ChangeInterface:
 		return w.walkOperands(ctx, depth+1, v)
+	case *ssa.Extract:
+		return w.walkOperands(ctx, depth+1, v)
 	case *ssa.Call:
 		return formatCall(ctx, v)
 	}
