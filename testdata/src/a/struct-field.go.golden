@@ -75,4 +75,11 @@ func (a *a) A(ctx context.Context) {
 	if err := a.ict.Err(ctx); err != nil {
 		_ = fmt.Errorf("a.ict.Err: %w", err)
 	}
+	_, err := a.ict.Result()
+	if err != nil {
+		_ = fmt.Errorf("a.ict.Result: %w", err) // want `the error-wrapping message should be "a\.ict\.Result: %w"`
+	}
+	if err != nil {
+		_ = fmt.Errorf("a.ict.Result: %w", err)
+	}
 }
