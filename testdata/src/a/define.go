@@ -6,7 +6,7 @@ import (
 
 type a struct {
 	ct  ct
-	ict interface{ Err(context.Context) error }
+	ict ict
 }
 
 func g() error {
@@ -51,5 +51,6 @@ func (r) r(context.Context) []*ct {
 
 type ict interface {
 	Err(context.Context) error
+	Result() (struct{}, error)
 }
 type mmu []ict
