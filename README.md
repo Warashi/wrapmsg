@@ -19,13 +19,13 @@ if err := pkg.Cause(); err != nil {
 
 ## Install
 ```sh
-$ go install github.com/Warashi/wrapmsg/cmd/wrapmsg@latest
+go install github.com/Warashi/wrapmsg/cmd/wrapmsg@latest
 ```
 
 ## Usage
 You can use wrapmsg as vettool.
 ```sh
-$ go vet -vettool=$(which wrapmsg) ./...
+go vet -vettool=$(which wrapmsg) ./...
 ```
 
 You can also build your linter with singlechecker or multichecker.
