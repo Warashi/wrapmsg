@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Warashi/ssautil"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ssa"
 )
@@ -40,14 +41,14 @@ func replaceConst(expr *ast.CallExpr, actual, want string) *ast.CallExpr {
 }
 
 func genText(ctx context.Context, expr *ast.CallExpr) []byte {
-	return []byte(prettyPrint(ctx, expr))
+	return []byte(ssautil.PrettyPrint(ctx, expr))
 }
 
 func report(ctx context.Context, call *ssa.Call) {
-	pass := getPass(ctx)
+	pass := ssautil.Pass(ctx)
 	var actual, want string
 	var gotActual, gotWant bool
-	for _, v := range getOperands(call) {
+	for _, v := range ssautil.Operands(call) {
 		switch v := v.(type) {
 		case *ssa.Const:
 			if v.Value == nil || v.Value.Kind() != constant.String {

@@ -1,21 +1,13 @@
 package wrapmsg
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
-	"go/format"
 
+	"github.com/Warashi/ssautil"
 	"golang.org/x/tools/go/ssa"
 )
-
-func prettyPrint(ctx context.Context, expr ast.Expr) string {
-	pass := getPass(ctx)
-	var b bytes.Buffer
-	format.Node(&b, pass.Fset, expr)
-	return b.String()
-}
 
 func formatCall(ctx context.Context, call *ssa.Call) ([]string, bool) {
 	c, ok := getCallExpr(ctx, call)
@@ -25,8 +17,8 @@ func formatCall(ctx context.Context, call *ssa.Call) ([]string, bool) {
 	return formatCallExpr(c), true
 }
 
-func getCallExpr(ctx context.Context, call poser) (*ast.CallExpr, bool) {
-	posMap := getPosMap(ctx)
+func getCallExpr(ctx context.Context, call ssautil.Poser) (*ast.CallExpr, bool) {
+	posMap := ssautil.PosMap(ctx)
 	for i := call.Pos(); i > 0; i-- {
 		stack := posMap[i]
 		if len(stack) == 0 {
