@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: [1.17, 1.18.0-beta2, tip]
+        go: [1.19, tip]
         os: [ubuntu-latest]
     steps:
       - name: Install Go using setup-go

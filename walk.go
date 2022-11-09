@@ -3,6 +3,7 @@ package wrapmsg
 import (
 	"context"
 
+	"github.com/Warashi/ssautil"
 	"golang.org/x/tools/go/ssa"
 )
 
@@ -27,7 +28,7 @@ func (w *walker) contains(n interface{}) bool {
 	return false
 }
 
-func (w *walker) walkRefs(ctx context.Context, depth int, v posReferrerer) ([]string, bool) {
+func (w *walker) walkRefs(ctx context.Context, depth int, v ssautil.Referrerer) ([]string, bool) {
 	for _, v := range *v.Referrers() {
 		if r, ok := w.walk(ctx, depth, v); ok {
 			return r, true
@@ -36,8 +37,8 @@ func (w *walker) walkRefs(ctx context.Context, depth int, v posReferrerer) ([]st
 	return nil, false
 }
 
-func (w *walker) walkOperands(ctx context.Context, depth int, v posOperander) ([]string, bool) {
-	for _, v := range getOperands(v) {
+func (w *walker) walkOperands(ctx context.Context, depth int, v ssautil.Operander) ([]string, bool) {
+	for _, v := range ssautil.Operands(v) {
 		if r, ok := w.walk(ctx, depth, v); ok {
 			return r, true
 		}
@@ -45,7 +46,7 @@ func (w *walker) walkOperands(ctx context.Context, depth int, v posOperander) ([
 	return nil, false
 }
 
-func (w *walker) walk(ctx context.Context, depth int, v poser) ([]string, bool) {
+func (w *walker) walk(ctx context.Context, depth int, v ssautil.Poser) ([]string, bool) {
 	if w.contains(v) {
 		return nil, false
 	}
