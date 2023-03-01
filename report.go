@@ -77,9 +77,10 @@ func report(ctx context.Context, call *ssa.Call) {
 		}
 		pos, end := node.Pos(), node.End()
 		pass.Report(analysis.Diagnostic{
-			Pos:     pos,
-			End:     end,
-			Message: fmt.Sprintf("want `the error-wrapping message should be %q", want),
+			Pos:      pos,
+			End:      end,
+			Category: "wrapmsg",
+			Message:  fmt.Sprintf("want `the error-wrapping message should be %q", want),
 			SuggestedFixes: []analysis.SuggestedFix{{TextEdits: []analysis.TextEdit{{
 				Pos:     pos,
 				End:     end,
