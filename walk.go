@@ -28,25 +28,25 @@ func (w *walker) contains(n interface{}) bool {
 	return false
 }
 
-func (w *walker) walkRefs(ctx context.Context, depth int, v ssautil.Referrerer) ([]string, bool) {
-	for _, v := range *v.Referrers() {
-		if r, ok := w.walk(ctx, depth, v); ok {
+func (w *walker) walkRefs(ctx context.Context, v ssautil.Referrerer) ([]string, bool) {
+	for _, v := range ssautil.Referrers(v) {
+		if r, ok := w.walk(ctx, v); ok {
 			return r, true
 		}
 	}
 	return nil, false
 }
 
-func (w *walker) walkOperands(ctx context.Context, depth int, v ssautil.Operander) ([]string, bool) {
+func (w *walker) walkOperands(ctx context.Context, v ssautil.Operander) ([]string, bool) {
 	for _, v := range ssautil.Operands(v) {
-		if r, ok := w.walk(ctx, depth, v); ok {
+		if r, ok := w.walk(ctx, v); ok {
 			return r, true
 		}
 	}
 	return nil, false
 }
 
-func (w *walker) walk(ctx context.Context, depth int, v ssautil.Poser) ([]string, bool) {
+func (w *walker) walk(ctx context.Context, v ssautil.Poser) ([]string, bool) {
 	if w.contains(v) {
 		return nil, false
 	}
@@ -55,17 +55,17 @@ func (w *walker) walk(ctx context.Context, depth int, v ssautil.Poser) ([]string
 
 	switch v := v.(type) {
 	case *ssa.Slice:
-		return w.walkOperands(ctx, depth+1, v)
+		return w.walkOperands(ctx, v)
 	case *ssa.Alloc:
-		return w.walkRefs(ctx, depth+1, v)
+		return w.walkRefs(ctx, v)
 	case *ssa.IndexAddr:
-		return w.walkRefs(ctx, depth+1, v)
+		return w.walkRefs(ctx, v)
 	case *ssa.Store:
-		return w.walkOperands(ctx, depth+1, v)
+		return w.walkOperands(ctx, v)
 	case *ssa.ChangeInterface:
-		return w.walkOperands(ctx, depth+1, v)
+		return w.walkOperands(ctx, v)
 	case *ssa.Extract:
-		return w.walkOperands(ctx, depth+1, v)
+		return w.walkOperands(ctx, v)
 	case *ssa.Call:
 		return formatCall(ctx, v)
 	}

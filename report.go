@@ -64,7 +64,7 @@ func report(ctx context.Context, call *ssa.Call) {
 			}
 		case *ssa.Slice:
 			w := new(walker)
-			if r, ok := w.walk(ctx, 0, v); ok && len(r) > 0 {
+			if r, ok := w.walk(ctx, v); ok && len(r) > 0 {
 				want = strings.Join(r, ".") + ": %w"
 				gotWant = true
 			}
