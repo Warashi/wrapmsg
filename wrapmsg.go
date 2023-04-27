@@ -19,7 +19,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func isErrorf(call *ssa.Call) bool {
-	if f, ok := ssautil.Operands(call)[0].(*ssa.Function); ok && f.Pkg.Pkg.Path() == "testing" {
+	if f, _ := ssautil.Operands(call)[0].(*ssa.Function); f != nil && f.Pkg != nil && f.Pkg.Pkg != nil && f.Pkg.Pkg.Path() == "testing" {
 		// avoid targeting (*testing.T).Errorf
 		return false
 	}
