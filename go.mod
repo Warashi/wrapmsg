@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/Warashi/ssautil v0.0.0-20221109005031-1ee09f55a822
 	github.com/gostaticanalysis/testutil v0.4.0
-	golang.org/x/tools v0.9.2
+	golang.org/x/tools v0.9.3
 )
 
 require (
