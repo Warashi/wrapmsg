@@ -66,6 +66,8 @@ func (w *walker) walk(ctx context.Context, v ssautil.Poser) ([]string, bool) {
 		return w.walkOperands(ctx, v)
 	case *ssa.Extract:
 		return w.walkOperands(ctx, v)
+	case *ssa.UnOp:
+		return w.walkRefs(ctx, v.X)
 	case *ssa.Call:
 		return formatCall(ctx, v)
 	}
