@@ -23,6 +23,7 @@ jobs:
       - name: Coveralls GitHub Action
         uses: coverallsapp/github-action@v2
         with:
+          file: cover.out
           flag-name: Go-${{ matrix.os }}-${{ matrix.go }}
           parallel: true
   finish-coveralls:
