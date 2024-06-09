@@ -9,44 +9,30 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: [1.19, tip]
+        go: [stable, oldstable]
         os: [ubuntu-latest]
     steps:
       - name: Install Go using setup-go
-        uses: actions/setup-go@v2
-        if: matrix.go != 'tip'
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
-          stable: false
-      - name: install Go tip manually
-        if: matrix.go == 'tip'
-        run: |
-          mkdir $HOME/gotip
-          curl -s https://storage.googleapis.com/go-build-snap/go/linux-amd64/$(git ls-remote https://go.googlesource.com/go master | cut -c 1-40).tar.gz | tar zx -C $HOME/gotip
-          echo "GOROOT=$HOME/gotip" >> $GITHUB_ENV
-          echo "$HOME/gotip/bin:$PATH" >> $GITHUB_PATH
+          check-latest: true
       - run: go version
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-            ${{ runner.os }}-go-
+      - uses: actions/checkout@v4
       - run: go test -coverprofile=cover.out ./...
-      - uses: shogo82148/actions-goveralls@v1
+      - name: Coveralls GitHub Action
         if: github.event_name == 'pull_request' || github.ref_name == 'main'
+        uses: coverallsapp/github-action@v2
         with:
-          path-to-profile: cover.out
+          file: cover.out
           flag-name: Go-${{ matrix.os }}-${{ matrix.go }}
           parallel: true
-  finish-goveralls:
+  finish-coveralls:
     needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' || github.ref_name == 'main'
     steps:
-      - uses: shogo82148/actions-goveralls@v1
+      - name: Coveralls GitHub Action
+        uses: coverallsapp/github-action@v2
         with:
           parallel-finished: true
