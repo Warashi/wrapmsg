@@ -1,6 +1,7 @@
 module github.com/Warashi/wrapmsg
 
-go 1.22.0
+go 1.22.9
+
 require (
 	github.com/Warashi/ssautil v0.0.0-20221109005031-1ee09f55a822
 	github.com/gostaticanalysis/testutil v0.5.2
