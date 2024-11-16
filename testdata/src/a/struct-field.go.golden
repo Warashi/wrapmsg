@@ -1,3 +1,5 @@
+//line struct-field.go:1
+
 package a
 
 import (

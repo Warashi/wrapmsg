@@ -1,3 +1,5 @@
+//line simple.go:1
+
 package a
 
 import (

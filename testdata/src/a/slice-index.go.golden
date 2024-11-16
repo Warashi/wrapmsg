@@ -1,3 +1,5 @@
+//line slice-index.go:1
+
 package a
 
 import (

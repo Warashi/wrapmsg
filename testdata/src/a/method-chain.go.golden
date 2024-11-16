@@ -1,3 +1,5 @@
+//line method-chain.go:1
+
 package a
 
 import (
