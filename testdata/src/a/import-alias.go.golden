@@ -1,3 +1,5 @@
+//line import-alias.go:1
+
 package a
 
 import (

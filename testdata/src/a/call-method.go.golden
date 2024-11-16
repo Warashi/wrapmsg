@@ -1,3 +1,5 @@
+//line call-method.go:1
+
 package a
 
 import (
