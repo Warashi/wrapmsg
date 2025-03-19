@@ -4,7 +4,7 @@ go 1.23.7
 
 require (
 	github.com/Warashi/ssautil v0.0.0-20221109005031-1ee09f55a822
-	github.com/gostaticanalysis/testutil v0.6.0
+	github.com/gostaticanalysis/testutil v0.6.1
 	golang.org/x/tools v0.31.0
 )
 
